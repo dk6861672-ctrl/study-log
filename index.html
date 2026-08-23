@@ -144,6 +144,19 @@
   .hidden{display:none !important;}
   @media (max-width:420px){ .ring-wrap{width:200px; height:200px;} .time-display{font-size:32px;} }
 </style>
+<script>
+  // Note: this only deters casual right-click/shortcut viewing.
+  // It does not hide the code from anyone who opens dev tools manually.
+  document.addEventListener('contextmenu', e => e.preventDefault());
+  document.addEventListener('keydown', e => {
+    const k = e.key.toLowerCase();
+    const blocked =
+      k === 'f12' ||
+      (e.ctrlKey && e.shiftKey && (k === 'i' || k === 'j' || k === 'c')) ||
+      (e.ctrlKey && k === 'u');
+    if(blocked) e.preventDefault();
+  });
+</script>
 </head>
 <body>
 <div class="wrap">
