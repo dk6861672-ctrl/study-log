@@ -4,11 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Study Log</title>
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self' https://*.supabase.co; img-src 'self' data:; frame-ancestors 'none'; base-uri 'self';">
-<meta name="referrer" content="strict-origin-when-cross-origin">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.52.0/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root{
     --bg:#12161C; --surface:#1A2029; --surface-alt:#212836;
@@ -144,19 +142,6 @@
   .hidden{display:none !important;}
   @media (max-width:420px){ .ring-wrap{width:200px; height:200px;} .time-display{font-size:32px;} }
 </style>
-<script>
-  // Note: this only deters casual right-click/shortcut viewing.
-  // It does not hide the code from anyone who opens dev tools manually.
-  document.addEventListener('contextmenu', e => e.preventDefault());
-  document.addEventListener('keydown', e => {
-    const k = e.key.toLowerCase();
-    const blocked =
-      k === 'f12' ||
-      (e.ctrlKey && e.shiftKey && (k === 'i' || k === 'j' || k === 'c')) ||
-      (e.ctrlKey && k === 'u');
-    if(blocked) e.preventDefault();
-  });
-</script>
 </head>
 <body>
 <div class="wrap">
@@ -243,8 +228,8 @@
 <script>
 // ======================= CONFIGURE THIS =======================
 // From Supabase: Project Settings → API
-const SUPABASE_URL = 'https://biclkxtbwpsjxmhinbuh.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_WTVyMZd7vqQbc11mDReKlQ_xAgCBNM-';
+const SUPABASE_URL = 'https://YOUR-PROJECT-REF.supabase.co';
+const SUPABASE_ANON_KEY = 'YOUR-ANON-PUBLIC-KEY';
 // ================================================================
 
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -269,6 +254,45 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   const todayStr = d => { d = d || new Date(); return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); };
   const fmtHMS = s => pad(Math.floor(s/3600))+':'+pad(Math.floor((s%3600)/60))+':'+pad(Math.floor(s%60));
   const fmtHM = s => { const h=Math.floor(s/3600), m=Math.round((s%3600)/60); return h<=0 ? m+'m' : h+'h '+m+'m'; };
+
+  // ---------------- TIMER PERSISTENCE ----------------
+  // Mobile/desktop browsers commonly discard a backgrounded tab and reload it
+  // from scratch after several minutes to save memory. Since running/startedAt/
+  // elapsedBeforePause previously lived only in JS memory, that reload wiped
+  // them and made the stopwatch look like it "stopped". Persisting to
+  // localStorage lets a reload pick the clock back up exactly where it was.
+  const TIMER_KEY = 'studyLogTimerState';
+  function saveTimerState(){
+    try{
+      localStorage.setItem(TIMER_KEY, JSON.stringify({ running, startedAt, elapsedBeforePause }));
+    }catch(e){}
+  }
+  function clearTimerState(){
+    try{ localStorage.removeItem(TIMER_KEY); }catch(e){}
+  }
+  function restoreTimerState(){
+    try{
+      const raw = localStorage.getItem(TIMER_KEY);
+      if(!raw) return;
+      const s = JSON.parse(raw);
+      running = !!s.running;
+      startedAt = s.startedAt || null;
+      elapsedBeforePause = s.elapsedBeforePause || 0;
+      if(running && startedAt){
+        tickHandle = setInterval(updateTimerUI, 250);
+      }
+    }catch(e){}
+  }
+  restoreTimerState();
+
+  // If the tab was only throttled (not discarded) while backgrounded, the
+  // interval can lag — snap the display back to the true elapsed time the
+  // moment the tab becomes visible again.
+  document.addEventListener('visibilitychange', () => {
+    if(document.visibilityState === 'visible' && running){
+      updateTimerUI();
+    }
+  });
 
   // ---------------- AUTH ----------------
   $('toggleLink').onclick = () => {
@@ -296,17 +320,8 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     }
   });
 
-  let lastAuthAttempt = 0;
   $('authForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    if($('authSubmitBtn').disabled) return; // guard against double-submit
-    const now = Date.now();
-    if(now - lastAuthAttempt < 2000){
-      $('authMsg').textContent = 'Please wait a moment before trying again.';
-      $('authMsg').className = 'auth-msg error';
-      return;
-    }
-    lastAuthAttempt = now;
     const email = $('email').value.trim();
     const password = $('password').value;
     $('authMsg').textContent = '';
@@ -326,12 +341,7 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         if(error) throw error;
       }
     }catch(err){
-      console.error('Auth error:', err);
-      const safeMessages = {
-        'Invalid login credentials': 'Incorrect email or password.',
-        'User already registered': 'An account with this email already exists.'
-      };
-      $('authMsg').textContent = safeMessages[err.message] || 'Something went wrong. Please try again.';
+      $('authMsg').textContent = err.message || 'Something went wrong.';
       $('authMsg').className = 'auth-msg error';
     }
     $('authSubmitBtn').disabled = false;
@@ -406,15 +416,17 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   function startTimer(){
     running = true; startedAt = Date.now();
     tickHandle = setInterval(updateTimerUI, 250);
+    saveTimerState();
     renderControls(); updateTimerUI();
   }
   function pauseTimer(){
     elapsedBeforePause = currentElapsedSec(); running = false; startedAt = null;
-    clearInterval(tickHandle); renderControls(); updateTimerUI();
+    clearInterval(tickHandle); saveTimerState(); renderControls(); updateTimerUI();
   }
   async function stopAndSave(){
     const sec = Math.round(currentElapsedSec());
     running = false; clearInterval(tickHandle); startedAt = null; elapsedBeforePause = 0;
+    clearTimerState();
     if(sec >= 5){
       await insertSession(sec);
       await loadSessions();
@@ -423,6 +435,7 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   }
   function discardTimer(){
     running = false; clearInterval(tickHandle); startedAt = null; elapsedBeforePause = 0;
+    clearTimerState();
     renderControls(); updateTimerUI();
   }
 
