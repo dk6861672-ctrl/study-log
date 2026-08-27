@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Krixel Phado</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --bg:#12161C; --surface:#1A2029; --surface-alt:#212836;
+    --ink:#EDEAE0; --muted:#838B99; --amber:#E7A33E; --amber-glow:#F4C168;
+    --line:#2A3140; --danger:#E06C5C;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background:var(--bg); color:var(--ink); font-family:'Inter', sans-serif;
+    min-height:100vh; display:flex; justify-content:center;
+    padding:40px 20px 80px;
+    background-image:radial-gradient(circle at 50% 0%, rgba(231,163,62,0.06), transparent 60%);
+  }
+  .wrap{width:100%; max-width:560px;}
+  header{display:flex; align-items:center; justify-content:space-between; margin-bottom:36px;}
+  .brand{font-family:'Fraunces', serif; font-weight:600; font-size:22px;}
+  .brand span{color:var(--amber);}
+  .user-chip{
+    display:flex; align-items:center; gap:10px;
+    font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--muted);
+  }
+  .user-chip button{
+    background:none; border:1px solid var(--line); color:var(--muted);
+    padding:5px 10px; border-radius:6px; cursor:pointer; font-family:'Inter',sans-serif;
+  }
+  .user-chip button:hover{color:var(--amber); border-color:var(--amber);}
+
+  /* ---- Auth screen ---- */
+  .auth-card{
+    background:var(--surface); border:1px solid var(--line); border-radius:14px;
+    padding:32px; text-align:center;
+  }
+  .auth-card h1{font-family:'Fraunces', serif; font-weight:500; font-size:22px; margin-bottom:6px;}
+  .auth-card p.sub{color:var(--muted); font-size:13px; margin-bottom:24px;}
+  .auth-form{display:flex; flex-direction:column; gap:12px; text-align:left;}
+  .auth-form label{font-size:12px; color:var(--muted); margin-bottom:4px; display:block;}
+  .auth-form input{
+    width:100%; padding:11px 12px; border-radius:8px; border:1px solid var(--line);
+    background:var(--surface-alt); color:var(--ink); font-family:'Inter',sans-serif; font-size:14px;
+  }
+  .auth-form input:focus{outline:none; border-color:var(--amber);}
+  .auth-actions{display:flex; gap:10px; margin-top:6px;}
+  .auth-msg{font-size:12.5px; margin-top:14px; min-height:16px;}
+  .auth-msg.error{color:var(--danger);}
+  .auth-msg.ok{color:var(--amber-glow);}
+  .auth-toggle{font-size:12.5px; color:var(--muted); margin-top:16px;}
+  .auth-toggle a{color:var(--amber); cursor:pointer; text-decoration:none;}
+
+  .btn{
+    font-family:'Inter', sans-serif; font-weight:500; font-size:14px;
+    padding:11px 22px; border-radius:8px; border:1px solid var(--line);
+    background:var(--surface); color:var(--ink); cursor:pointer; transition:all 0.15s ease;
+    flex:1;
+  }
+  .btn:hover{border-color:var(--amber);}
+  .btn.primary{background:var(--amber); border-color:var(--amber); color:#1A1408;}
+  .btn.primary:hover{background:var(--amber-glow);}
+  .btn.ghost{color:var(--muted); border-color:transparent;}
+  .btn.ghost:hover{color:var(--ink);}
+  .btn:disabled{opacity:0.5; cursor:default;}
+
+  /* ---- Hero timer ---- */
+  .hero{display:flex; flex-direction:column; align-items:center; padding:36px 0 28px;}
+  .ring-wrap{position:relative; width:240px; height:240px;}
+  svg.ring{transform:rotate(-90deg);}
+  .ring-track{fill:none; stroke:var(--surface-alt); stroke-width:6;}
+  .ring-progress{
+    fill:none; stroke:var(--amber); stroke-width:6; stroke-linecap:round;
+    transition:stroke-dashoffset 0.3s linear;
+    filter:drop-shadow(0 0 6px rgba(231,163,62,0.5));
+  }
+  .ring-center{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;}
+  .time-display{
+    font-family:'IBM Plex Mono', monospace; font-size:40px; font-weight:500;
+    letter-spacing:0.02em; font-variant-numeric:tabular-nums;
+  }
+  .time-display.running{color:var(--amber-glow);}
+  .status-dot{width:7px; height:7px; border-radius:50%; background:var(--muted); margin-top:8px;}
+  .status-dot.running{background:var(--amber); box-shadow:0 0 8px var(--amber);}
+  .controls{display:flex; gap:12px; margin-top:26px;}
+  .quick-stats{
+    display:flex; justify-content:center; gap:28px; margin-top:22px;
+    font-family:'IBM Plex Mono', monospace; font-size:13px; color:var(--muted);
+  }
+  .quick-stats b{color:var(--ink); font-weight:500;}
+
+  .month-nav{
+    display:flex; align-items:center; gap:10px;
+    font-family:'IBM Plex Mono', monospace; font-size:13px; color:var(--muted);
+  }
+  .month-nav button{
+    background:none; border:1px solid var(--line); color:var(--muted);
+    width:26px; height:26px; border-radius:6px; cursor:pointer; font-size:14px; line-height:1;
+  }
+  .month-nav button:hover{color:var(--amber); border-color:var(--amber);}
+  .month-label{color:var(--ink); min-width:90px; text-align:center;}
+
+  .card{background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:24px; margin-top:20px;}
+  .card h2{
+    font-family:'Fraunces', serif; font-weight:500; font-size:15px;
+    text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); margin-bottom:16px;
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  .weekday-row{display:grid; grid-template-columns:repeat(7,1fr); gap:6px; margin-bottom:6px;}
+  .weekday-row span{text-align:center; font-size:11px; color:var(--muted); font-family:'IBM Plex Mono', monospace;}
+  .day-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:6px;}
+  .day-cell{
+    aspect-ratio:1; border-radius:6px; background:var(--surface-alt);
+    display:flex; align-items:center; justify-content:center;
+    font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--muted); position:relative;
+  }
+  .day-cell.empty{background:transparent;}
+  .day-cell.today{box-shadow:inset 0 0 0 1.5px var(--amber);}
+  .day-cell[title]:hover::after{
+    content:attr(title); position:absolute; bottom:110%; left:50%; transform:translateX(-50%);
+    background:#0D1015; color:var(--ink); padding:5px 8px; border-radius:6px;
+    font-size:11px; white-space:nowrap; z-index:5; border:1px solid var(--line);
+  }
+  .month-summary{
+    display:flex; justify-content:space-between; margin-top:18px; padding-top:16px;
+    border-top:1px solid var(--line); font-family:'IBM Plex Mono', monospace; font-size:13px;
+  }
+  .month-summary .label{color:var(--muted); font-family:'Inter',sans-serif; font-size:12px; display:block; margin-bottom:4px;}
+  .session-row{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:10px 0; border-bottom:1px solid var(--line); font-size:13px;
+  }
+  .session-row:last-child{border-bottom:none;}
+  .session-row .dur{font-family:'IBM Plex Mono', monospace; color:var(--amber-glow);}
+  .empty-state{color:var(--muted); font-size:13px; text-align:center; padding:20px 0;}
+  footer{text-align:center; margin-top:28px; font-size:11.5px; color:var(--muted);}
+  footer .lock{color:var(--amber);}
+  .hidden{display:none !important;}
+  @media (max-width:420px){ .ring-wrap{width:200px; height:200px;} .time-display{font-size:32px;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="brand">krixel<span>·</span>phado</div>
+    <div class="user-chip hidden" id="userChip">
+      <span id="userEmail"></span>
+      <button id="signOutBtn">Sign out</button>
+    </div>
+  </header>
+
+  <!-- AUTH SCREEN -->
+  <div class="auth-card" id="authCard">
+    <h1 id="authTitle">Welcome back</h1>
+    <p class="sub" id="authSub">Sign in to see your study log.</p>
+    <form class="auth-form" id="authForm">
+      <div>
+        <label for="email">Email</label>
+        <input type="email" id="email" required autocomplete="email">
+      </div>
+      <div>
+        <label for="password">Password</label>
+        <input type="password" id="password" required autocomplete="current-password" minlength="6">
+      </div>
+      <div class="auth-actions">
+        <button type="submit" class="btn primary" id="authSubmitBtn">Sign in</button>
+      </div>
+    </form>
+    <div class="auth-msg" id="authMsg"></div>
+    <div class="auth-toggle" id="authToggle">
+      New here? <a id="toggleLink">Create an account</a>
+    </div>
+  </div>
+
+  <!-- APP (shown once signed in) -->
+  <div id="app" class="hidden">
+    <div class="hero">
+      <div class="ring-wrap">
+        <svg class="ring" width="240" height="240" viewBox="0 0 240 240">
+          <circle class="ring-track" cx="120" cy="120" r="108"></circle>
+          <circle class="ring-progress" id="ringProgress" cx="120" cy="120" r="108"
+            stroke-dasharray="678.6" stroke-dashoffset="678.6"></circle>
+        </svg>
+        <div class="ring-center">
+          <div class="time-display" id="timeDisplay">00:00:00</div>
+          <div class="status-dot" id="statusDot"></div>
+        </div>
+      </div>
+      <div class="controls" id="controls"></div>
+      <div class="quick-stats">
+        <div>Today <b id="todayTotal">0m</b></div>
+        <div>This week <b id="weekTotal">0m</b></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>
+        <span>This month</span>
+        <span class="month-nav">
+          <button id="prevMonth">‹</button>
+          <span class="month-label" id="monthLabel">—</span>
+          <button id="nextMonth">›</button>
+        </span>
+      </h2>
+      <div class="weekday-row"><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span></div>
+      <div class="day-grid" id="dayGrid"></div>
+      <div class="month-summary">
+        <div><span class="label">Total logged</span><span id="monthTotal">0h 0m</span></div>
+        <div><span class="label">Daily average</span><span id="monthAvg">0h 0m</span></div>
+        <div><span class="label">Days studied</span><span id="monthDays">0</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Recent sessions</h2>
+      <div id="sessionList"></div>
+    </div>
+
+    <footer><span class="lock">●</span> Stored in your account only — nobody else can see your log.</footer>
+  </div>
+</div>
+
+<script>
+// ======================= CONFIGURE THIS =======================
+// From Supabase: Project Settings → API
+const SUPABASE_URL = 'https://YOUR-PROJECT-REF.supabase.co';
+const SUPABASE_ANON_KEY = 'YOUR-ANON-PUBLIC-KEY';
+// ================================================================
+
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+(function(){
+  let sessions = [];
+  let running = false;
+  let startedAt = null;
+  let elapsedBeforePause = 0;
+  let tickHandle = null;
+  let viewYear, viewMonth;
+  let currentUser = null;
+  let isSignUpMode = false;
+
+  const now = new Date();
+  viewYear = now.getFullYear();
+  viewMonth = now.getMonth();
+
+  const RING_CIRC = 678.6;
+  const $ = id => document.getElementById(id);
+  const pad = n => n.toString().padStart(2,'0');
+  const todayStr = d => { d = d || new Date(); return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); };
+  const fmtHMS = s => pad(Math.floor(s/3600))+':'+pad(Math.floor((s%3600)/60))+':'+pad(Math.floor(s%60));
+  const fmtHM = s => { const h=Math.floor(s/3600), m=Math.round((s%3600)/60); return h<=0 ? m+'m' : h+'h '+m+'m'; };
+
+  // ---------------- TIMER PERSISTENCE ----------------
+  // Mobile/desktop browsers commonly discard a backgrounded tab and reload it
+  // from scratch after several minutes to save memory. Since running/startedAt/
+  // elapsedBeforePause previously lived only in JS memory, that reload wiped
+  // them and made the stopwatch look like it "stopped". Persisting to
+  // localStorage lets a reload pick the clock back up exactly where it was.
+  const TIMER_KEY = 'studyLogTimerState';
+  function saveTimerState(){
+    try{
+      localStorage.setItem(TIMER_KEY, JSON.stringify({ running, startedAt, elapsedBeforePause }));
+    }catch(e){}
+  }
+  function clearTimerState(){
+    try{ localStorage.removeItem(TIMER_KEY); }catch(e){}
+  }
+  function restoreTimerState(){
+    try{
+      const raw = localStorage.getItem(TIMER_KEY);
+      if(!raw) return;
+      const s = JSON.parse(raw);
+      running = !!s.running;
+      startedAt = s.startedAt || null;
+      elapsedBeforePause = s.elapsedBeforePause || 0;
+      if(running && startedAt){
+        tickHandle = setInterval(updateTimerUI, 250);
+      }
+    }catch(e){}
+  }
+  restoreTimerState();
+
+  // If the tab was only throttled (not discarded) while backgrounded, the
+  // interval can lag — snap the display back to the true elapsed time the
+  // moment the tab becomes visible again.
+  document.addEventListener('visibilitychange', () => {
+    if(document.visibilityState === 'visible' && running){
+      updateTimerUI();
+    }
+  });
+
+  // ---------------- AUTH ----------------
+  $('toggleLink').onclick = () => {
+    isSignUpMode = !isSignUpMode;
+    $('authTitle').textContent = isSignUpMode ? 'Create your account' : 'Welcome back';
+    $('authSub').textContent = isSignUpMode ? 'Start tracking your study time.' : 'Sign in to see your study log.';
+    $('authSubmitBtn').textContent = isSignUpMode ? 'Create account' : 'Sign in';
+    $('authToggle').innerHTML = isSignUpMode
+      ? 'Already have an account? <a id="toggleLink">Sign in</a>'
+      : 'New here? <a id="toggleLink">Create an account</a>';
+    $('toggleLink').onclick = arguments.callee.caller; // reattach not needed; handled by delegated listener below
+    $('authMsg').textContent = '';
+  };
+  // Delegate so the re-rendered link keeps working
+  $('authToggle').addEventListener('click', (e) => {
+    if(e.target && e.target.id === 'toggleLink'){
+      isSignUpMode = !isSignUpMode;
+      $('authTitle').textContent = isSignUpMode ? 'Create your account' : 'Welcome back';
+      $('authSub').textContent = isSignUpMode ? 'Start tracking your study time.' : 'Sign in to see your study log.';
+      $('authSubmitBtn').textContent = isSignUpMode ? 'Create account' : 'Sign in';
+      $('authToggle').innerHTML = isSignUpMode
+        ? 'Already have an account? <a id="toggleLink">Sign in</a>'
+        : 'New here? <a id="toggleLink">Create an account</a>';
+      $('authMsg').textContent = '';
+    }
+  });
+
+  $('authForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = $('email').value.trim();
+    const password = $('password').value;
+    $('authMsg').textContent = '';
+    $('authMsg').className = 'auth-msg';
+    $('authSubmitBtn').disabled = true;
+
+    try{
+      if(isSignUpMode){
+        const { data, error } = await supabase.auth.signUp({ email, password });
+        if(error) throw error;
+        if(data.user && !data.session){
+          $('authMsg').textContent = 'Check your email to confirm your account, then sign in.';
+          $('authMsg').className = 'auth-msg ok';
+        }
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if(error) throw error;
+      }
+    }catch(err){
+      $('authMsg').textContent = err.message || 'Something went wrong.';
+      $('authMsg').className = 'auth-msg error';
+    }
+    $('authSubmitBtn').disabled = false;
+  });
+
+  $('signOutBtn').onclick = async () => { await supabase.auth.signOut(); };
+
+  supabase.auth.onAuthStateChange((_event, session) => {
+    currentUser = session ? session.user : null;
+    if(currentUser){
+      $('authCard').classList.add('hidden');
+      $('app').classList.remove('hidden');
+      $('userChip').classList.remove('hidden');
+      $('userEmail').textContent = currentUser.email;
+      initAppData();
+    } else {
+      $('authCard').classList.remove('hidden');
+      $('app').classList.add('hidden');
+      $('userChip').classList.add('hidden');
+    }
+  });
+
+  // ---------------- DATA ----------------
+  async function loadSessions(){
+    const { data, error } = await supabase
+      .from('study_sessions')
+      .select('id, date, sec, created_at')
+      .order('created_at', { ascending: false });
+    if(error){ console.error(error); sessions = []; return; }
+    sessions = data.map(r => ({ id: r.id, date: r.date, sec: r.sec, ts: new Date(r.created_at).getTime() }));
+  }
+
+  async function insertSession(sec){
+    const { error } = await supabase.from('study_sessions').insert({
+      user_id: currentUser.id,
+      date: todayStr(),
+      sec: sec
+    });
+    if(error) console.error(error);
+  }
+
+  // ---------------- TIMER ----------------
+  function currentElapsedSec(){
+    let sec = elapsedBeforePause;
+    if(running && startedAt) sec += (Date.now() - startedAt) / 1000;
+    return sec;
+  }
+  function updateTimerUI(){
+    const sec = currentElapsedSec();
+    $('timeDisplay').textContent = fmtHMS(sec);
+    $('timeDisplay').classList.toggle('running', running);
+    $('statusDot').classList.toggle('running', running);
+    const cyclePos = (sec % 3600) / 3600;
+    $('ringProgress').setAttribute('stroke-dashoffset', RING_CIRC * (1 - cyclePos));
+  }
+  function renderControls(){
+    const controls = $('controls');
+    if(!running && elapsedBeforePause === 0){
+      controls.innerHTML = '<button class="btn primary" id="startBtn">Start studying</button>';
+      $('startBtn').onclick = startTimer;
+    } else if(running){
+      controls.innerHTML = '<button class="btn" id="pauseBtn">Pause</button><button class="btn primary" id="stopBtn">Stop &amp; save</button>';
+      $('pauseBtn').onclick = pauseTimer;
+      $('stopBtn').onclick = stopAndSave;
+    } else {
+      controls.innerHTML = '<button class="btn" id="resumeBtn">Resume</button><button class="btn primary" id="stopBtn">Stop &amp; save</button><button class="btn ghost" id="discardBtn">Discard</button>';
+      $('resumeBtn').onclick = startTimer;
+      $('stopBtn').onclick = stopAndSave;
+      $('discardBtn').onclick = discardTimer;
+    }
+  }
+  function startTimer(){
+    running = true; startedAt = Date.now();
+    tickHandle = setInterval(updateTimerUI, 250);
+    saveTimerState();
+    renderControls(); updateTimerUI();
+  }
+  function pauseTimer(){
+    elapsedBeforePause = currentElapsedSec(); running = false; startedAt = null;
+    clearInterval(tickHandle); saveTimerState(); renderControls(); updateTimerUI();
+  }
+  async function stopAndSave(){
+    const sec = Math.round(currentElapsedSec());
+    running = false; clearInterval(tickHandle); startedAt = null; elapsedBeforePause = 0;
+    clearTimerState();
+    if(sec >= 5){
+      await insertSession(sec);
+      await loadSessions();
+    }
+    renderControls(); updateTimerUI(); renderAll();
+  }
+  function discardTimer(){
+    running = false; clearInterval(tickHandle); startedAt = null; elapsedBeforePause = 0;
+    clearTimerState();
+    renderControls(); updateTimerUI();
+  }
+
+  // ---------------- AGGREGATIONS ----------------
+  const secForDate = ds => sessions.filter(s => s.date === ds).reduce((a,s)=>a+s.sec,0);
+  const secForRange = (a1,b1) => sessions.filter(s => s.date >= a1 && s.date <= b1).reduce((a,s)=>a+s.sec,0);
+  function startOfWeekStr(d){
+    const day = (d.getDay() + 6) % 7;
+    const monday = new Date(d); monday.setDate(d.getDate() - day);
+    return todayStr(monday);
+  }
+  function renderQuickStats(){
+    const t = new Date();
+    $('todayTotal').textContent = fmtHM(secForDate(todayStr(t)));
+    $('weekTotal').textContent = fmtHM(secForRange(startOfWeekStr(t), todayStr(t)));
+  }
+  function renderMonthLabel(){
+    $('monthLabel').textContent = new Date(viewYear, viewMonth, 1).toLocaleString('default', { month:'long', year:'numeric' });
+  }
+  function renderDayGrid(){
+    const grid = $('dayGrid'); grid.innerHTML = '';
+    const firstDay = new Date(viewYear, viewMonth, 1);
+    const daysInMonth = new Date(viewYear, viewMonth+1, 0).getDate();
+    const leadEmpty = (firstDay.getDay() + 6) % 7;
+    const daySecs = []; let maxSec = 1;
+    for(let d=1; d<=daysInMonth; d++){
+      const ds = viewYear+'-'+pad(viewMonth+1)+'-'+pad(d);
+      const sec = secForDate(ds);
+      daySecs.push(sec);
+      if(sec > maxSec) maxSec = sec;
+    }
+    for(let i=0;i<leadEmpty;i++){ const c=document.createElement('div'); c.className='day-cell empty'; grid.appendChild(c); }
+    const t = new Date();
+    for(let d=1; d<=daysInMonth; d++){
+      const sec = daySecs[d-1];
+      const cell = document.createElement('div'); cell.className = 'day-cell';
+      if(sec > 0){
+        const intensity = Math.min(1, sec / (maxSec || 1));
+        const alpha = 0.18 + intensity*0.7;
+        cell.style.background = 'rgba(231,163,62,' + alpha.toFixed(2) + ')';
+        cell.style.color = intensity > 0.5 ? '#1A1408' : 'var(--ink)';
+        cell.title = fmtHM(sec) + ' studied';
+      }
+      if(viewYear===t.getFullYear() && viewMonth===t.getMonth() && d===t.getDate()) cell.classList.add('today');
+      cell.textContent = d;
+      grid.appendChild(cell);
+    }
+  }
+  function renderMonthSummary(){
+    const daysInMonth = new Date(viewYear, viewMonth+1, 0).getDate();
+    let total = 0, daysStudied = 0;
+    for(let d=1; d<=daysInMonth; d++){
+      const sec = secForDate(viewYear+'-'+pad(viewMonth+1)+'-'+pad(d));
+      if(sec>0){ total += sec; daysStudied++; }
+    }
+    $('monthTotal').textContent = fmtHM(total);
+    $('monthDays').textContent = daysStudied;
+    $('monthAvg').textContent = fmtHM(daysStudied>0 ? total/daysStudied : 0);
+  }
+  function renderSessionList(){
+    const list = $('sessionList');
+    const recent = [...sessions].sort((a,b)=>b.ts-a.ts).slice(0,8);
+    if(recent.length===0){ list.innerHTML = '<div class="empty-state">No sessions yet — start the timer above to log your first one.</div>'; return; }
+    list.innerHTML = recent.map(s => {
+      const d = new Date(s.ts);
+      const dateLabel = d.toLocaleDateString('default', { month:'short', day:'numeric' }) + ', ' + d.toLocaleTimeString('default', { hour:'numeric', minute:'2-digit' });
+      return '<div class="session-row"><span class="date">'+dateLabel+'</span><span class="dur">'+fmtHM(s.sec)+'</span></div>';
+    }).join('');
+  }
+  function renderAll(){ renderMonthLabel(); renderDayGrid(); renderMonthSummary(); renderSessionList(); renderQuickStats(); }
+
+  $('prevMonth').onclick = () => { viewMonth--; if(viewMonth<0){viewMonth=11; viewYear--;} renderAll(); };
+  $('nextMonth').onclick = () => { viewMonth++; if(viewMonth>11){viewMonth=0; viewYear++;} renderAll(); };
+
+  async function initAppData(){
+    await loadSessions();
+    renderControls();
+    updateTimerUI();
+    renderAll();
+  }
+})();
+</script>
+</body>
+</html>
