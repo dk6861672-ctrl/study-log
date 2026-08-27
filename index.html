@@ -228,8 +228,8 @@
 <script>
 // ======================= CONFIGURE THIS =======================
 // From Supabase: Project Settings → API
-const SUPABASE_URL = 'https://biclkxtbwpsjxmhinbuh.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpY2xreHRid3BzanhtaGluYnVoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUxMzQ3NjksImV4cCI6MjEwMDcxMDc2OX0.aVHr9TK6GECJoChkCfI17Vg6blCxXTLY1myT6uDax50';
+const SUPABASE_URL = 'https://YOUR-PROJECT-REF.supabase.co';
+const SUPABASE_ANON_KEY = 'YOUR-ANON-PUBLIC-KEY';
 // ================================================================
 
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -254,45 +254,6 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   const todayStr = d => { d = d || new Date(); return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); };
   const fmtHMS = s => pad(Math.floor(s/3600))+':'+pad(Math.floor((s%3600)/60))+':'+pad(Math.floor(s%60));
   const fmtHM = s => { const h=Math.floor(s/3600), m=Math.round((s%3600)/60); return h<=0 ? m+'m' : h+'h '+m+'m'; };
-
-  // ---------------- TIMER PERSISTENCE ----------------
-  // Mobile/desktop browsers commonly discard a backgrounded tab and reload it
-  // from scratch after several minutes to save memory. Since running/startedAt/
-  // elapsedBeforePause previously lived only in JS memory, that reload wiped
-  // them and made the stopwatch look like it "stopped". Persisting to
-  // localStorage lets a reload pick the clock back up exactly where it was.
-  const TIMER_KEY = 'studyLogTimerState';
-  function saveTimerState(){
-    try{
-      localStorage.setItem(TIMER_KEY, JSON.stringify({ running, startedAt, elapsedBeforePause }));
-    }catch(e){}
-  }
-  function clearTimerState(){
-    try{ localStorage.removeItem(TIMER_KEY); }catch(e){}
-  }
-  function restoreTimerState(){
-    try{
-      const raw = localStorage.getItem(TIMER_KEY);
-      if(!raw) return;
-      const s = JSON.parse(raw);
-      running = !!s.running;
-      startedAt = s.startedAt || null;
-      elapsedBeforePause = s.elapsedBeforePause || 0;
-      if(running && startedAt){
-        tickHandle = setInterval(updateTimerUI, 250);
-      }
-    }catch(e){}
-  }
-  restoreTimerState();
-
-  // If the tab was only throttled (not discarded) while backgrounded, the
-  // interval can lag — snap the display back to the true elapsed time the
-  // moment the tab becomes visible again.
-  document.addEventListener('visibilitychange', () => {
-    if(document.visibilityState === 'visible' && running){
-      updateTimerUI();
-    }
-  });
 
   // ---------------- AUTH ----------------
   $('toggleLink').onclick = () => {
@@ -416,17 +377,15 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   function startTimer(){
     running = true; startedAt = Date.now();
     tickHandle = setInterval(updateTimerUI, 250);
-    saveTimerState();
     renderControls(); updateTimerUI();
   }
   function pauseTimer(){
     elapsedBeforePause = currentElapsedSec(); running = false; startedAt = null;
-    clearInterval(tickHandle); saveTimerState(); renderControls(); updateTimerUI();
+    clearInterval(tickHandle); renderControls(); updateTimerUI();
   }
   async function stopAndSave(){
     const sec = Math.round(currentElapsedSec());
     running = false; clearInterval(tickHandle); startedAt = null; elapsedBeforePause = 0;
-    clearTimerState();
     if(sec >= 5){
       await insertSession(sec);
       await loadSessions();
@@ -435,7 +394,6 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   }
   function discardTimer(){
     running = false; clearInterval(tickHandle); startedAt = null; elapsedBeforePause = 0;
-    clearTimerState();
     renderControls(); updateTimerUI();
   }
 
