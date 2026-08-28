@@ -6,12 +6,15 @@
 <title>Study Watch</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
 <style>
   :root{
     --bg:#12161C; --surface:#1A2029; --surface-alt:#212836;
     --ink:#EDEAE0; --muted:#838B99; --amber:#E7A33E; --amber-glow:#F4C168;
     --line:#2A3140; --danger:#E06C5C;
+    --c1:#E7A33E; --c2:#6EC5B8; --c3:#B191E0; --c4:#E08A7D; --c5:#7FB3E0; --c6:#C9CF6B;
   }
   *{box-sizing:border-box; margin:0; padding:0;}
   body{
@@ -20,7 +23,7 @@
     padding:48px 20px 80px;
     background-image:radial-gradient(circle at 50% 0%, rgba(231,163,62,0.08), transparent 60%);
   }
-  .wrap{width:100%; max-width:420px;}
+  .wrap{width:100%; max-width:440px;}
   header{display:flex; align-items:center; justify-content:space-between; margin-bottom:36px;}
   .brand{font-family:'Fraunces', serif; font-weight:600; font-size:22px;}
   .brand span{color:var(--amber);}
@@ -65,13 +68,42 @@
   .btn:hover{border-color:var(--amber);}
   .btn.primary{background:var(--amber); border-color:var(--amber); color:#1A1408; font-weight:600;}
   .btn.primary:hover{background:var(--amber-glow);}
+  .btn.primary:disabled{opacity:0.5; cursor:default; background:var(--amber);}
   .btn.ghost{color:var(--muted);}
   .btn.ghost:hover{color:var(--ink);}
   .btn:disabled{opacity:0.5; cursor:default;}
 
+  /* ---- Subject picker ---- */
+  .subject-picker{margin-bottom:22px;}
+  .subject-picker label{font-size:12px; color:var(--muted); margin-bottom:8px; display:block; text-align:center;}
+  .subject-chips{display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-bottom:10px;}
+  .chip{
+    font-family:'Inter', sans-serif; font-size:13px; padding:7px 14px; border-radius:999px;
+    border:1px solid var(--line); background:var(--surface); color:var(--muted); cursor:pointer;
+    transition:all 0.15s ease;
+  }
+  .chip:hover{border-color:var(--amber); color:var(--ink);}
+  .chip.selected{background:var(--amber); border-color:var(--amber); color:#1A1408; font-weight:600;}
+  .subject-input-row{display:flex; gap:8px; justify-content:center;}
+  .subject-input-row input{
+    padding:9px 12px; border-radius:8px; border:1px solid var(--line);
+    background:var(--surface-alt); color:var(--ink); font-family:'Inter',sans-serif; font-size:13px;
+    width:170px;
+  }
+  .subject-input-row input:focus{outline:none; border-color:var(--amber);}
+  .subject-input-row button{
+    padding:9px 14px; border-radius:8px; border:1px solid var(--line);
+    background:var(--surface); color:var(--muted); cursor:pointer; font-size:13px;
+  }
+  .subject-input-row button:hover{color:var(--amber); border-color:var(--amber);}
+
   /* ---- Hero timer ---- */
   .hero{display:flex; flex-direction:column; align-items:center;}
-  .ring-wrap{position:relative; width:260px; height:260px;}
+  .active-subject{
+    font-family:'IBM Plex Mono', monospace; font-size:12.5px; color:var(--amber-glow);
+    text-transform:uppercase; letter-spacing:0.08em; margin-bottom:14px; min-height:16px;
+  }
+  .ring-wrap{position:relative; width:250px; height:250px;}
   svg.ring{transform:rotate(-90deg);}
   .ring-track{fill:none; stroke:var(--surface-alt); stroke-width:6;}
   .ring-progress{
@@ -81,29 +113,51 @@
   }
   .ring-center{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;}
   .time-display{
-    font-family:'IBM Plex Mono', monospace; font-size:42px; font-weight:500;
+    font-family:'IBM Plex Mono', monospace; font-size:40px; font-weight:500;
     letter-spacing:0.02em; font-variant-numeric:tabular-nums;
   }
   .time-display.running{color:var(--amber-glow);}
   .status-dot{width:7px; height:7px; border-radius:50%; background:var(--muted); margin-top:10px;}
-  .status-dot.running{background:var(--amber); box-shadow:0 0 8px var(--amber);}
-  .controls{display:flex; gap:12px; margin-top:30px; width:100%;}
+  .status-dot.running{background:var(--amber); box-shadow:0 0 8px var(--amber); animation:pulse 1.4s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:1;} 50%{opacity:0.4;}}
+  .controls{display:flex; gap:12px; margin-top:26px; width:100%;}
 
-  .card{background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:22px; margin-top:32px;}
+  .card{background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:22px; margin-top:24px;}
   .card h2{
     font-family:'Fraunces', serif; font-weight:500; font-size:14px;
-    text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); margin-bottom:14px;
+    text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); margin-bottom:16px;
+    display:flex; justify-content:space-between; align-items:center;
   }
+  .tabs{display:flex; gap:4px; background:var(--surface-alt); border-radius:8px; padding:3px;}
+  .tab{
+    font-family:'Inter', sans-serif; font-size:11.5px; padding:5px 10px; border-radius:6px;
+    color:var(--muted); cursor:pointer; border:none; background:none;
+  }
+  .tab.active{background:var(--surface); color:var(--ink);}
+
   .stat-row{display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--line); font-size:14px;}
   .stat-row:last-child{border-bottom:none;}
   .stat-row .val{font-family:'IBM Plex Mono', monospace; color:var(--amber-glow); font-weight:500;}
-  .history{margin-top:14px;}
-  .hist-row{display:flex; justify-content:space-between; padding:8px 0; font-size:13px; color:var(--muted);}
-  .hist-row .dur{font-family:'IBM Plex Mono', monospace; color:var(--ink);}
+
+  .subj-bar-row{margin-bottom:14px;}
+  .subj-bar-row:last-child{margin-bottom:0;}
+  .subj-bar-label{display:flex; justify-content:space-between; font-size:13px; margin-bottom:6px;}
+  .subj-bar-label .dot{display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:7px;}
+  .subj-bar-label .dur{font-family:'IBM Plex Mono', monospace; color:var(--muted);}
+  .subj-bar-track{height:7px; border-radius:4px; background:var(--surface-alt); overflow:hidden;}
+  .subj-bar-fill{height:100%; border-radius:4px; transition:width 0.4s ease;}
+
+  .history{margin-top:0;}
+  .hist-row{display:flex; justify-content:space-between; align-items:center; padding:9px 0; border-bottom:1px solid var(--line); font-size:13px;}
+  .hist-row:last-child{border-bottom:none;}
+  .hist-row .left{display:flex; flex-direction:column; gap:2px;}
+  .hist-row .subj{color:var(--ink); font-weight:500;}
+  .hist-row .when{color:var(--muted); font-size:11.5px;}
+  .hist-row .dur{font-family:'IBM Plex Mono', monospace; color:var(--amber-glow);}
   .empty-state{color:var(--muted); font-size:13px; text-align:center; padding:14px 0;}
   footer{text-align:center; margin-top:28px; font-size:11.5px; color:var(--muted);}
   footer .lock{color:var(--amber);}
-  @media (max-width:420px){ .ring-wrap{width:220px; height:220px;} .time-display{font-size:34px;} }
+  @media (max-width:420px){ .ring-wrap{width:210px; height:210px;} .time-display{font-size:32px;} }
 </style>
 </head>
 <body>
@@ -142,12 +196,24 @@
 
   <!-- APP (shown once signed in) -->
   <div id="app" class="hidden">
+
+    <!-- Subject picker (shown only when timer is idle) -->
+    <div class="subject-picker" id="subjectPicker">
+      <label>What are you studying?</label>
+      <div class="subject-chips" id="subjectChips"></div>
+      <div class="subject-input-row">
+        <input type="text" id="newSubjectInput" placeholder="Add a subject…" maxlength="30">
+        <button type="button" id="addSubjectBtn">Add</button>
+      </div>
+    </div>
+
     <div class="hero">
+      <div class="active-subject" id="activeSubjectLabel"></div>
       <div class="ring-wrap">
-        <svg class="ring" width="260" height="260" viewBox="0 0 260 260">
-          <circle class="ring-track" cx="130" cy="130" r="117"></circle>
-          <circle class="ring-progress" id="ringProgress" cx="130" cy="130" r="117"
-            stroke-dasharray="735.1" stroke-dashoffset="735.1"></circle>
+        <svg class="ring" width="250" height="250" viewBox="0 0 250 250">
+          <circle class="ring-track" cx="125" cy="125" r="112"></circle>
+          <circle class="ring-progress" id="ringProgress" cx="125" cy="125" r="112"
+            stroke-dasharray="703.7" stroke-dashoffset="703.7"></circle>
         </svg>
         <div class="ring-center">
           <div class="time-display" id="timeDisplay">00:00:00</div>
@@ -158,9 +224,14 @@
     </div>
 
     <div class="card">
-      <h2>Today's summary</h2>
-      <div class="stat-row"><span>Today total</span><span class="val" id="todayTotal">0m</span></div>
-      <div class="stat-row"><span>This week total</span><span class="val" id="weekTotal">0m</span></div>
+      <h2>Summary
+        <div class="tabs" id="rangeTabs">
+          <button class="tab active" data-range="today">Today</button>
+          <button class="tab" data-range="week">Week</button>
+        </div>
+      </h2>
+      <div class="stat-row"><span>Total studied</span><span class="val" id="rangeTotal">0m</span></div>
+      <div id="subjectBreakdown" style="margin-top:16px;"></div>
     </div>
 
     <div class="card">
@@ -174,34 +245,47 @@
 </div>
 
 <script>
-// ======================= CONFIGURE THIS =======================
-// From Supabase: Project Settings → API
-const SUPABASE_URL = 'https://zdaajhzkvshxphondyak.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpkYWFqaHprdnNoeHBob25keWFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc4NDY1NjcsImV4cCI6MjEwMzQyMjU2N30.dXR5xFZx6ofa38kQDvUvN9eCOR7hXkDLHy3qGD-Wfgc';
+// ======================= FIREBASE CONFIG =======================
+const firebaseConfig = {
+  apiKey: "AIzaSyAIXx9VTUGi5p2VaJ6depnmf_xPGbsyS_c",
+  authDomain: "krixel-phado.firebaseapp.com",
+  databaseURL: "https://krixel-phado-default-rtdb.firebaseio.com",
+  projectId: "krixel-phado",
+  storageBucket: "krixel-phado.firebasestorage.app",
+  messagingSenderId: "893509703215",
+  appId: "1:893509703215:web:d1a5be107b0aeda9de58da"
+};
 // ================================================================
 
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.database();
 
 (function(){
-  const RING_CIRC = 735.1;
+  const RING_CIRC = 703.7;
   const $ = id => document.getElementById(id);
   const pad = n => n.toString().padStart(2,'0');
   const todayStr = d => { d = d || new Date(); return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); };
   const fmtHMS = s => pad(Math.floor(s/3600))+':'+pad(Math.floor((s%3600)/60))+':'+pad(Math.floor(s%60));
   const fmtHM = s => { const h=Math.floor(s/3600), m=Math.round((s%3600)/60); return h<=0 ? m+'m' : h+'h '+m+'m'; };
+  const SUBJECT_COLORS = ['var(--c1)','var(--c2)','var(--c3)','var(--c4)','var(--c5)','var(--c6)'];
+  const DEFAULT_SUBJECTS = ['Math','Science','English','History'];
 
   let sessions = [];
+  let subjects = [];
+  let selectedSubject = null;
   let running = false;
   let startedAt = null;
   let elapsedBeforePause = 0;
   let tickHandle = null;
   let currentUser = null;
   let isSignUpMode = false;
+  let activeRange = 'today';
 
   // ---------------- TIMER PERSISTENCE (survives reload/backgrounding) ----------------
   const TIMER_KEY = 'studyWatchTimerState';
   function saveTimerState(){
-    try{ localStorage.setItem(TIMER_KEY, JSON.stringify({ running, startedAt, elapsedBeforePause })); }catch(e){}
+    try{ localStorage.setItem(TIMER_KEY, JSON.stringify({ running, startedAt, elapsedBeforePause, selectedSubject })); }catch(e){}
   }
   function clearTimerState(){
     try{ localStorage.removeItem(TIMER_KEY); }catch(e){}
@@ -214,6 +298,7 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
       running = !!s.running;
       startedAt = s.startedAt || null;
       elapsedBeforePause = s.elapsedBeforePause || 0;
+      selectedSubject = s.selectedSubject || null;
       if(running && startedAt){
         tickHandle = setInterval(updateTimerUI, 250);
       }
@@ -228,9 +313,8 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   });
 
   // ---------------- AUTH ----------------
-  // Single delegated listener — do NOT also attach a direct handler to
-  // #toggleLink, since the link gets re-created via innerHTML below and
-  // a duplicate handler would double-toggle the mode on every click.
+  // Single delegated listener — the link is re-created via innerHTML below,
+  // so a duplicate direct handler would double-toggle the mode on every click.
   $('authToggle').addEventListener('click', (e) => {
     if(e.target && e.target.id === 'toggleLink'){
       isSignUpMode = !isSignUpMode;
@@ -254,15 +338,9 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     try{
       if(isSignUpMode){
-        const { data, error } = await supabase.auth.signUp({ email, password });
-        if(error) throw error;
-        if(data.user && !data.session){
-          $('authMsg').textContent = 'Check your email to confirm your account, then sign in.';
-          $('authMsg').className = 'auth-msg ok';
-        }
+        await auth.createUserWithEmailAndPassword(email, password);
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if(error) throw error;
+        await auth.signInWithEmailAndPassword(email, password);
       }
     }catch(err){
       $('authMsg').textContent = err.message || 'Something went wrong.';
@@ -271,10 +349,10 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     $('authSubmitBtn').disabled = false;
   });
 
-  $('signOutBtn').onclick = async () => { await supabase.auth.signOut(); };
+  $('signOutBtn').onclick = async () => { await auth.signOut(); };
 
-  supabase.auth.onAuthStateChange((_event, session) => {
-    currentUser = session ? session.user : null;
+  auth.onAuthStateChanged((user) => {
+    currentUser = user;
     if(currentUser){
       $('authCard').classList.add('hidden');
       $('app').classList.remove('hidden');
@@ -289,22 +367,78 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   });
 
   // ---------------- DATA ----------------
+  // Sessions live at /sessions/{uid}/{pushId} and custom subjects at
+  // /subjects/{uid}/{pushId} — both scoped per-user so each account's
+  // data is naturally isolated by the database rules.
   async function loadSessions(){
-    const { data, error } = await supabase
-      .from('study_sessions')
-      .select('id, date, sec, created_at')
-      .order('created_at', { ascending: false });
-    if(error){ console.error(error); sessions = []; return; }
-    sessions = data.map(r => ({ id: r.id, date: r.date, sec: r.sec, ts: new Date(r.created_at).getTime() }));
+    try{
+      const snap = await db.ref('sessions/' + currentUser.uid).once('value');
+      const val = snap.val() || {};
+      sessions = Object.keys(val).map(key => ({
+        id: key,
+        date: val[key].date,
+        sec: val[key].sec,
+        subject: val[key].subject || 'General',
+        ts: val[key].createdAt || Date.now()
+      }));
+    }catch(err){
+      console.error(err);
+      sessions = [];
+    }
   }
-  async function insertSession(sec){
-    const { error } = await supabase.from('study_sessions').insert({
-      user_id: currentUser.id,
-      date: todayStr(),
-      sec: sec
+  async function insertSession(sec, subject){
+    try{
+      await db.ref('sessions/' + currentUser.uid).push({
+        date: todayStr(),
+        sec: sec,
+        subject: subject,
+        createdAt: firebase.database.ServerValue.TIMESTAMP
+      });
+    }catch(err){ console.error(err); }
+  }
+  async function loadSubjects(){
+    try{
+      const snap = await db.ref('subjects/' + currentUser.uid).once('value');
+      const val = snap.val() || {};
+      const custom = Object.values(val).map(v => v.name);
+      subjects = [...new Set([...DEFAULT_SUBJECTS, ...custom])];
+    }catch(err){
+      subjects = [...DEFAULT_SUBJECTS];
+    }
+  }
+  async function addSubject(name){
+    if(subjects.includes(name)) return;
+    subjects.push(name);
+    try{ await db.ref('subjects/' + currentUser.uid).push({ name }); }catch(err){ console.error(err); }
+  }
+
+  // ---------------- SUBJECT PICKER ----------------
+  function renderSubjectChips(){
+    const wrap = $('subjectChips');
+    wrap.innerHTML = subjects.map(s =>
+      '<div class="chip'+(s===selectedSubject?' selected':'')+'" data-subject="'+s+'">'+s+'</div>'
+    ).join('');
+    wrap.querySelectorAll('.chip').forEach(chip => {
+      chip.onclick = () => {
+        selectedSubject = chip.getAttribute('data-subject');
+        renderSubjectChips();
+        renderControls();
+      };
     });
-    if(error) console.error(error);
   }
+  $('addSubjectBtn').onclick = async () => {
+    const input = $('newSubjectInput');
+    const name = input.value.trim();
+    if(!name) return;
+    await addSubject(name);
+    selectedSubject = name;
+    input.value = '';
+    renderSubjectChips();
+    renderControls();
+  };
+  $('newSubjectInput').addEventListener('keydown', (e) => {
+    if(e.key === 'Enter'){ e.preventDefault(); $('addSubjectBtn').click(); }
+  });
 
   // ---------------- TIMER ----------------
   function currentElapsedSec(){
@@ -319,17 +453,22 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     $('statusDot').classList.toggle('running', running);
     const cyclePos = (sec % 3600) / 3600;
     $('ringProgress').setAttribute('stroke-dashoffset', RING_CIRC * (1 - cyclePos));
+    $('activeSubjectLabel').textContent = (running || elapsedBeforePause > 0) && selectedSubject ? selectedSubject : '';
   }
   function renderControls(){
     const controls = $('controls');
+    const picker = $('subjectPicker');
     if(!running && elapsedBeforePause === 0){
-      controls.innerHTML = '<button class="btn primary" id="startBtn">Start studying</button>';
+      picker.classList.remove('hidden');
+      controls.innerHTML = '<button class="btn primary" id="startBtn"'+(!selectedSubject?' disabled':'')+'>Start studying</button>';
       $('startBtn').onclick = startTimer;
     } else if(running){
+      picker.classList.add('hidden');
       controls.innerHTML = '<button class="btn" id="pauseBtn">Pause</button><button class="btn primary" id="stopBtn">Stop &amp; save</button>';
       $('pauseBtn').onclick = pauseTimer;
       $('stopBtn').onclick = stopAndSave;
     } else {
+      picker.classList.add('hidden');
       controls.innerHTML = '<button class="btn" id="resumeBtn">Resume</button><button class="btn primary" id="stopBtn">Stop &amp; save</button><button class="btn ghost" id="discardBtn">Discard</button>';
       $('resumeBtn').onclick = startTimer;
       $('stopBtn').onclick = stopAndSave;
@@ -337,6 +476,7 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     }
   }
   function startTimer(){
+    if(!selectedSubject) return;
     running = true; startedAt = Date.now();
     tickHandle = setInterval(updateTimerUI, 250);
     saveTimerState();
@@ -348,12 +488,15 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   }
   async function stopAndSave(){
     const sec = Math.round(currentElapsedSec());
+    const subject = selectedSubject;
     running = false; clearInterval(tickHandle); startedAt = null; elapsedBeforePause = 0;
     clearTimerState();
     if(sec >= 5){
-      await insertSession(sec);
+      await insertSession(sec, subject);
       await loadSessions();
     }
+    selectedSubject = null;
+    renderSubjectChips();
     renderControls(); updateTimerUI(); renderAll();
   }
   function discardTimer(){
@@ -363,32 +506,64 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   }
 
   // ---------------- STATS ----------------
-  const secForDate = ds => sessions.filter(s => s.date === ds).reduce((a,s)=>a+s.sec,0);
-  const secForRange = (a1,b1) => sessions.filter(s => s.date >= a1 && s.date <= b1).reduce((a,s)=>a+s.sec,0);
-  function startOfWeekStr(d){
+  function rangeStart(){
+    if(activeRange === 'today') return todayStr();
+    const d = new Date();
     const day = (d.getDay() + 6) % 7;
     const monday = new Date(d); monday.setDate(d.getDate() - day);
     return todayStr(monday);
   }
-  function renderQuickStats(){
-    const t = new Date();
-    $('todayTotal').textContent = fmtHM(secForDate(todayStr(t)));
-    $('weekTotal').textContent = fmtHM(secForRange(startOfWeekStr(t), todayStr(t)));
+  function sessionsInRange(){
+    const start = rangeStart();
+    const end = todayStr();
+    return sessions.filter(s => s.date >= start && s.date <= end);
+  }
+  $('rangeTabs').addEventListener('click', (e) => {
+    if(e.target.classList.contains('tab')){
+      activeRange = e.target.getAttribute('data-range');
+      $('rangeTabs').querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t===e.target));
+      renderAll();
+    }
+  });
+  function renderSummary(){
+    const inRange = sessionsInRange();
+    const total = inRange.reduce((a,s)=>a+s.sec,0);
+    $('rangeTotal').textContent = fmtHM(total);
+
+    const bySubject = {};
+    inRange.forEach(s => { bySubject[s.subject] = (bySubject[s.subject]||0) + s.sec; });
+    const entries = Object.entries(bySubject).sort((a,b)=>b[1]-a[1]);
+    const wrap = $('subjectBreakdown');
+    if(entries.length === 0){
+      wrap.innerHTML = '<div class="empty-state">No sessions in this range yet.</div>';
+      return;
+    }
+    const maxSec = entries[0][1];
+    wrap.innerHTML = entries.map(([subj, sec], i) => {
+      const color = SUBJECT_COLORS[i % SUBJECT_COLORS.length];
+      const pct = Math.max(6, Math.round((sec / maxSec) * 100));
+      return '<div class="subj-bar-row">'+
+        '<div class="subj-bar-label"><span><span class="dot" style="background:'+color+'"></span>'+subj+'</span><span class="dur">'+fmtHM(sec)+'</span></div>'+
+        '<div class="subj-bar-track"><div class="subj-bar-fill" style="width:'+pct+'%; background:'+color+'"></div></div>'+
+      '</div>';
+    }).join('');
   }
   function renderSessionList(){
     const list = $('sessionList');
     const recent = [...sessions].sort((a,b)=>b.ts-a.ts).slice(0,8);
-    if(recent.length===0){ list.innerHTML = '<div class="empty-state">No sessions yet — start the timer above to log your first one.</div>'; return; }
+    if(recent.length===0){ list.innerHTML = '<div class="empty-state">No sessions yet — pick a subject and start the timer above.</div>'; return; }
     list.innerHTML = recent.map(s => {
       const d = new Date(s.ts);
       const dateLabel = d.toLocaleDateString('default', { month:'short', day:'numeric' }) + ', ' + d.toLocaleTimeString('default', { hour:'numeric', minute:'2-digit' });
-      return '<div class="hist-row"><span>'+dateLabel+'</span><span class="dur">'+fmtHM(s.sec)+'</span></div>';
+      return '<div class="hist-row"><div class="left"><span class="subj">'+s.subject+'</span><span class="when">'+dateLabel+'</span></div><span class="dur">'+fmtHM(s.sec)+'</span></div>';
     }).join('');
   }
-  function renderAll(){ renderSessionList(); renderQuickStats(); }
+  function renderAll(){ renderSummary(); renderSessionList(); }
 
   async function initAppData(){
+    await loadSubjects();
     await loadSessions();
+    renderSubjectChips();
     renderControls();
     updateTimerUI();
     renderAll();
