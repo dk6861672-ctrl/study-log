@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Study Log</title>
+<title>Study Watch</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root{
@@ -16,11 +16,11 @@
   *{box-sizing:border-box; margin:0; padding:0;}
   body{
     background:var(--bg); color:var(--ink); font-family:'Inter', sans-serif;
-    min-height:100vh; display:flex; justify-content:center;
-    padding:40px 20px 80px;
-    background-image:radial-gradient(circle at 50% 0%, rgba(231,163,62,0.06), transparent 60%);
+    min-height:100vh; display:flex; justify-content:center; align-items:flex-start;
+    padding:48px 20px 80px;
+    background-image:radial-gradient(circle at 50% 0%, rgba(231,163,62,0.08), transparent 60%);
   }
-  .wrap{width:100%; max-width:560px;}
+  .wrap{width:100%; max-width:420px;}
   header{display:flex; align-items:center; justify-content:space-between; margin-bottom:36px;}
   .brand{font-family:'Fraunces', serif; font-weight:600; font-size:22px;}
   .brand span{color:var(--amber);}
@@ -33,6 +33,7 @@
     padding:5px 10px; border-radius:6px; cursor:pointer; font-family:'Inter',sans-serif;
   }
   .user-chip button:hover{color:var(--amber); border-color:var(--amber);}
+  .hidden{display:none !important;}
 
   /* ---- Auth screen ---- */
   .auth-card{
@@ -56,21 +57,21 @@
   .auth-toggle a{color:var(--amber); cursor:pointer; text-decoration:none;}
 
   .btn{
-    font-family:'Inter', sans-serif; font-weight:500; font-size:14px;
-    padding:11px 22px; border-radius:8px; border:1px solid var(--line);
+    font-family:'Inter', sans-serif; font-weight:500; font-size:15px;
+    padding:13px 22px; border-radius:10px; border:1px solid var(--line);
     background:var(--surface); color:var(--ink); cursor:pointer; transition:all 0.15s ease;
     flex:1;
   }
   .btn:hover{border-color:var(--amber);}
-  .btn.primary{background:var(--amber); border-color:var(--amber); color:#1A1408;}
+  .btn.primary{background:var(--amber); border-color:var(--amber); color:#1A1408; font-weight:600;}
   .btn.primary:hover{background:var(--amber-glow);}
-  .btn.ghost{color:var(--muted); border-color:transparent;}
+  .btn.ghost{color:var(--muted);}
   .btn.ghost:hover{color:var(--ink);}
   .btn:disabled{opacity:0.5; cursor:default;}
 
   /* ---- Hero timer ---- */
-  .hero{display:flex; flex-direction:column; align-items:center; padding:36px 0 28px;}
-  .ring-wrap{position:relative; width:240px; height:240px;}
+  .hero{display:flex; flex-direction:column; align-items:center;}
+  .ring-wrap{position:relative; width:260px; height:260px;}
   svg.ring{transform:rotate(-90deg);}
   .ring-track{fill:none; stroke:var(--surface-alt); stroke-width:6;}
   .ring-progress{
@@ -80,74 +81,36 @@
   }
   .ring-center{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;}
   .time-display{
-    font-family:'IBM Plex Mono', monospace; font-size:40px; font-weight:500;
+    font-family:'IBM Plex Mono', monospace; font-size:42px; font-weight:500;
     letter-spacing:0.02em; font-variant-numeric:tabular-nums;
   }
   .time-display.running{color:var(--amber-glow);}
-  .status-dot{width:7px; height:7px; border-radius:50%; background:var(--muted); margin-top:8px;}
+  .status-dot{width:7px; height:7px; border-radius:50%; background:var(--muted); margin-top:10px;}
   .status-dot.running{background:var(--amber); box-shadow:0 0 8px var(--amber);}
-  .controls{display:flex; gap:12px; margin-top:26px;}
-  .quick-stats{
-    display:flex; justify-content:center; gap:28px; margin-top:22px;
-    font-family:'IBM Plex Mono', monospace; font-size:13px; color:var(--muted);
-  }
-  .quick-stats b{color:var(--ink); font-weight:500;}
+  .controls{display:flex; gap:12px; margin-top:30px; width:100%;}
 
-  .month-nav{
-    display:flex; align-items:center; gap:10px;
-    font-family:'IBM Plex Mono', monospace; font-size:13px; color:var(--muted);
-  }
-  .month-nav button{
-    background:none; border:1px solid var(--line); color:var(--muted);
-    width:26px; height:26px; border-radius:6px; cursor:pointer; font-size:14px; line-height:1;
-  }
-  .month-nav button:hover{color:var(--amber); border-color:var(--amber);}
-  .month-label{color:var(--ink); min-width:90px; text-align:center;}
-
-  .card{background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:24px; margin-top:20px;}
+  .card{background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:22px; margin-top:32px;}
   .card h2{
-    font-family:'Fraunces', serif; font-weight:500; font-size:15px;
-    text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); margin-bottom:16px;
-    display:flex; justify-content:space-between; align-items:center;
+    font-family:'Fraunces', serif; font-weight:500; font-size:14px;
+    text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); margin-bottom:14px;
   }
-  .weekday-row{display:grid; grid-template-columns:repeat(7,1fr); gap:6px; margin-bottom:6px;}
-  .weekday-row span{text-align:center; font-size:11px; color:var(--muted); font-family:'IBM Plex Mono', monospace;}
-  .day-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:6px;}
-  .day-cell{
-    aspect-ratio:1; border-radius:6px; background:var(--surface-alt);
-    display:flex; align-items:center; justify-content:center;
-    font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--muted); position:relative;
-  }
-  .day-cell.empty{background:transparent;}
-  .day-cell.today{box-shadow:inset 0 0 0 1.5px var(--amber);}
-  .day-cell[title]:hover::after{
-    content:attr(title); position:absolute; bottom:110%; left:50%; transform:translateX(-50%);
-    background:#0D1015; color:var(--ink); padding:5px 8px; border-radius:6px;
-    font-size:11px; white-space:nowrap; z-index:5; border:1px solid var(--line);
-  }
-  .month-summary{
-    display:flex; justify-content:space-between; margin-top:18px; padding-top:16px;
-    border-top:1px solid var(--line); font-family:'IBM Plex Mono', monospace; font-size:13px;
-  }
-  .month-summary .label{color:var(--muted); font-family:'Inter',sans-serif; font-size:12px; display:block; margin-bottom:4px;}
-  .session-row{
-    display:flex; justify-content:space-between; align-items:center;
-    padding:10px 0; border-bottom:1px solid var(--line); font-size:13px;
-  }
-  .session-row:last-child{border-bottom:none;}
-  .session-row .dur{font-family:'IBM Plex Mono', monospace; color:var(--amber-glow);}
-  .empty-state{color:var(--muted); font-size:13px; text-align:center; padding:20px 0;}
+  .stat-row{display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--line); font-size:14px;}
+  .stat-row:last-child{border-bottom:none;}
+  .stat-row .val{font-family:'IBM Plex Mono', monospace; color:var(--amber-glow); font-weight:500;}
+  .history{margin-top:14px;}
+  .hist-row{display:flex; justify-content:space-between; padding:8px 0; font-size:13px; color:var(--muted);}
+  .hist-row .dur{font-family:'IBM Plex Mono', monospace; color:var(--ink);}
+  .empty-state{color:var(--muted); font-size:13px; text-align:center; padding:14px 0;}
   footer{text-align:center; margin-top:28px; font-size:11.5px; color:var(--muted);}
   footer .lock{color:var(--amber);}
-  .hidden{display:none !important;}
-  @media (max-width:420px){ .ring-wrap{width:200px; height:200px;} .time-display{font-size:32px;} }
+  @media (max-width:420px){ .ring-wrap{width:220px; height:220px;} .time-display{font-size:34px;} }
 </style>
 </head>
 <body>
 <div class="wrap">
 
   <header>
-    <div class="brand">study<span>·</span>log</div>
+    <div class="brand">study<span>·</span>watch</div>
     <div class="user-chip hidden" id="userChip">
       <span id="userEmail"></span>
       <button id="signOutBtn">Sign out</button>
@@ -181,10 +144,10 @@
   <div id="app" class="hidden">
     <div class="hero">
       <div class="ring-wrap">
-        <svg class="ring" width="240" height="240" viewBox="0 0 240 240">
-          <circle class="ring-track" cx="120" cy="120" r="108"></circle>
-          <circle class="ring-progress" id="ringProgress" cx="120" cy="120" r="108"
-            stroke-dasharray="678.6" stroke-dashoffset="678.6"></circle>
+        <svg class="ring" width="260" height="260" viewBox="0 0 260 260">
+          <circle class="ring-track" cx="130" cy="130" r="117"></circle>
+          <circle class="ring-progress" id="ringProgress" cx="130" cy="130" r="117"
+            stroke-dasharray="735.1" stroke-dashoffset="735.1"></circle>
         </svg>
         <div class="ring-center">
           <div class="time-display" id="timeDisplay">00:00:00</div>
@@ -192,38 +155,24 @@
         </div>
       </div>
       <div class="controls" id="controls"></div>
-      <div class="quick-stats">
-        <div>Today <b id="todayTotal">0m</b></div>
-        <div>This week <b id="weekTotal">0m</b></div>
-      </div>
     </div>
 
     <div class="card">
-      <h2>
-        <span>This month</span>
-        <span class="month-nav">
-          <button id="prevMonth">‹</button>
-          <span class="month-label" id="monthLabel">—</span>
-          <button id="nextMonth">›</button>
-        </span>
-      </h2>
-      <div class="weekday-row"><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span></div>
-      <div class="day-grid" id="dayGrid"></div>
-      <div class="month-summary">
-        <div><span class="label">Total logged</span><span id="monthTotal">0h 0m</span></div>
-        <div><span class="label">Daily average</span><span id="monthAvg">0h 0m</span></div>
-        <div><span class="label">Days studied</span><span id="monthDays">0</span></div>
-      </div>
+      <h2>Today's summary</h2>
+      <div class="stat-row"><span>Today total</span><span class="val" id="todayTotal">0m</span></div>
+      <div class="stat-row"><span>This week total</span><span class="val" id="weekTotal">0m</span></div>
     </div>
 
     <div class="card">
       <h2>Recent sessions</h2>
-      <div id="sessionList"></div>
+      <div class="history" id="sessionList"></div>
     </div>
 
-    <footer><span class="lock">●</span> Stored in your account only — nobody else can see your log.</footer>
+    <footer><span class="lock">●</span> Stored in your account only — synced across your devices.</footer>
   </div>
+
 </div>
+
 <script>
 // ======================= CONFIGURE THIS =======================
 // From Supabase: Project Settings → API
@@ -234,37 +183,25 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 (function(){
-  let sessions = [];
-  let running = false;
-  let startedAt = null;
-  let elapsedBeforePause = 0;
-  let tickHandle = null;
-  let viewYear, viewMonth;
-  let currentUser = null;
-  let isSignUpMode = false;
-
-  const now = new Date();
-  viewYear = now.getFullYear();
-  viewMonth = now.getMonth();
-
-  const RING_CIRC = 678.6;
+  const RING_CIRC = 735.1;
   const $ = id => document.getElementById(id);
   const pad = n => n.toString().padStart(2,'0');
   const todayStr = d => { d = d || new Date(); return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); };
   const fmtHMS = s => pad(Math.floor(s/3600))+':'+pad(Math.floor((s%3600)/60))+':'+pad(Math.floor(s%60));
   const fmtHM = s => { const h=Math.floor(s/3600), m=Math.round((s%3600)/60); return h<=0 ? m+'m' : h+'h '+m+'m'; };
 
-  // ---------------- TIMER PERSISTENCE ----------------
-  // Mobile/desktop browsers commonly discard a backgrounded tab and reload it
-  // from scratch after several minutes to save memory. Since running/startedAt/
-  // elapsedBeforePause previously lived only in JS memory, that reload wiped
-  // them and made the stopwatch look like it "stopped". Persisting to
-  // localStorage lets a reload pick the clock back up exactly where it was.
-  const TIMER_KEY = 'studyLogTimerState';
+  let sessions = [];
+  let running = false;
+  let startedAt = null;
+  let elapsedBeforePause = 0;
+  let tickHandle = null;
+  let currentUser = null;
+  let isSignUpMode = false;
+
+  // ---------------- TIMER PERSISTENCE (survives reload/backgrounding) ----------------
+  const TIMER_KEY = 'studyWatchTimerState';
   function saveTimerState(){
-    try{
-      localStorage.setItem(TIMER_KEY, JSON.stringify({ running, startedAt, elapsedBeforePause }));
-    }catch(e){}
+    try{ localStorage.setItem(TIMER_KEY, JSON.stringify({ running, startedAt, elapsedBeforePause })); }catch(e){}
   }
   function clearTimerState(){
     try{ localStorage.removeItem(TIMER_KEY); }catch(e){}
@@ -284,9 +221,6 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   }
   restoreTimerState();
 
-  // If the tab was only throttled (not discarded) while backgrounded, the
-  // interval can lag — snap the display back to the true elapsed time the
-  // moment the tab becomes visible again.
   document.addEventListener('visibilitychange', () => {
     if(document.visibilityState === 'visible' && running){
       updateTimerUI();
@@ -294,7 +228,9 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   });
 
   // ---------------- AUTH ----------------
-  // Delegate so the re-rendered link keeps working
+  // Single delegated listener — do NOT also attach a direct handler to
+  // #toggleLink, since the link gets re-created via innerHTML below and
+  // a duplicate handler would double-toggle the mode on every click.
   $('authToggle').addEventListener('click', (e) => {
     if(e.target && e.target.id === 'toggleLink'){
       isSignUpMode = !isSignUpMode;
@@ -361,7 +297,6 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     if(error){ console.error(error); sessions = []; return; }
     sessions = data.map(r => ({ id: r.id, date: r.date, sec: r.sec, ts: new Date(r.created_at).getTime() }));
   }
-
   async function insertSession(sec){
     const { error } = await supabase.from('study_sessions').insert({
       user_id: currentUser.id,
@@ -427,7 +362,7 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     renderControls(); updateTimerUI();
   }
 
-  // ---------------- AGGREGATIONS ----------------
+  // ---------------- STATS ----------------
   const secForDate = ds => sessions.filter(s => s.date === ds).reduce((a,s)=>a+s.sec,0);
   const secForRange = (a1,b1) => sessions.filter(s => s.date >= a1 && s.date <= b1).reduce((a,s)=>a+s.sec,0);
   function startOfWeekStr(d){
@@ -440,49 +375,6 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     $('todayTotal').textContent = fmtHM(secForDate(todayStr(t)));
     $('weekTotal').textContent = fmtHM(secForRange(startOfWeekStr(t), todayStr(t)));
   }
-  function renderMonthLabel(){
-    $('monthLabel').textContent = new Date(viewYear, viewMonth, 1).toLocaleString('default', { month:'long', year:'numeric' });
-  }
-  function renderDayGrid(){
-    const grid = $('dayGrid'); grid.innerHTML = '';
-    const firstDay = new Date(viewYear, viewMonth, 1);
-    const daysInMonth = new Date(viewYear, viewMonth+1, 0).getDate();
-    const leadEmpty = (firstDay.getDay() + 6) % 7;
-    const daySecs = []; let maxSec = 1;
-    for(let d=1; d<=daysInMonth; d++){
-      const ds = viewYear+'-'+pad(viewMonth+1)+'-'+pad(d);
-      const sec = secForDate(ds);
-      daySecs.push(sec);
-      if(sec > maxSec) maxSec = sec;
-    }
-    for(let i=0;i<leadEmpty;i++){ const c=document.createElement('div'); c.className='day-cell empty'; grid.appendChild(c); }
-    const t = new Date();
-    for(let d=1; d<=daysInMonth; d++){
-      const sec = daySecs[d-1];
-      const cell = document.createElement('div'); cell.className = 'day-cell';
-      if(sec > 0){
-        const intensity = Math.min(1, sec / (maxSec || 1));
-        const alpha = 0.18 + intensity*0.7;
-        cell.style.background = 'rgba(231,163,62,' + alpha.toFixed(2) + ')';
-        cell.style.color = intensity > 0.5 ? '#1A1408' : 'var(--ink)';
-        cell.title = fmtHM(sec) + ' studied';
-      }
-      if(viewYear===t.getFullYear() && viewMonth===t.getMonth() && d===t.getDate()) cell.classList.add('today');
-      cell.textContent = d;
-      grid.appendChild(cell);
-    }
-  }
-  function renderMonthSummary(){
-    const daysInMonth = new Date(viewYear, viewMonth+1, 0).getDate();
-    let total = 0, daysStudied = 0;
-    for(let d=1; d<=daysInMonth; d++){
-      const sec = secForDate(viewYear+'-'+pad(viewMonth+1)+'-'+pad(d));
-      if(sec>0){ total += sec; daysStudied++; }
-    }
-    $('monthTotal').textContent = fmtHM(total);
-    $('monthDays').textContent = daysStudied;
-    $('monthAvg').textContent = fmtHM(daysStudied>0 ? total/daysStudied : 0);
-  }
   function renderSessionList(){
     const list = $('sessionList');
     const recent = [...sessions].sort((a,b)=>b.ts-a.ts).slice(0,8);
@@ -490,13 +382,10 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     list.innerHTML = recent.map(s => {
       const d = new Date(s.ts);
       const dateLabel = d.toLocaleDateString('default', { month:'short', day:'numeric' }) + ', ' + d.toLocaleTimeString('default', { hour:'numeric', minute:'2-digit' });
-      return '<div class="session-row"><span class="date">'+dateLabel+'</span><span class="dur">'+fmtHM(s.sec)+'</span></div>';
+      return '<div class="hist-row"><span>'+dateLabel+'</span><span class="dur">'+fmtHM(s.sec)+'</span></div>';
     }).join('');
   }
-  function renderAll(){ renderMonthLabel(); renderDayGrid(); renderMonthSummary(); renderSessionList(); renderQuickStats(); }
-
-  $('prevMonth').onclick = () => { viewMonth--; if(viewMonth<0){viewMonth=11; viewYear--;} renderAll(); };
-  $('nextMonth').onclick = () => { viewMonth++; if(viewMonth>11){viewMonth=0; viewYear++;} renderAll(); };
+  function renderAll(){ renderSessionList(); renderQuickStats(); }
 
   async function initAppData(){
     await loadSessions();
