@@ -261,6 +261,23 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.database();
 
+// ---- Casual-view deterrents ----
+// NOTE: these do NOT provide real security. Any browser's DevTools/Network
+// tab, "disable JavaScript", or a saved copy of the page bypasses all of
+// this instantly. The actual protection for user data is the Firebase
+// database rules — see the rules JSON provided separately. Keep this block
+// only if you want to discourage casual right-click/view-source snooping.
+document.addEventListener('contextmenu', e => e.preventDefault());
+document.addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  const blocked =
+    e.key === 'F12' ||
+    (e.ctrlKey && e.shiftKey && (k === 'i' || k === 'j' || k === 'c')) ||
+    (e.ctrlKey && k === 'u') ||
+    (e.metaKey && e.altKey && (k === 'i' || k === 'j' || k === 'c'));
+  if(blocked) e.preventDefault();
+});
+
 (function(){
   const RING_CIRC = 703.7;
   const $ = id => document.getElementById(id);
