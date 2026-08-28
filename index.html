@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Krixel Phado</title>
+<title>Study Log</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -147,7 +147,7 @@
 <div class="wrap">
 
   <header>
-    <div class="brand">krixel<span>·</span>phado</div>
+    <div class="brand">study<span>·</span>log</div>
     <div class="user-chip hidden" id="userChip">
       <span id="userEmail"></span>
       <button id="signOutBtn">Sign out</button>
@@ -295,17 +295,6 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   });
 
   // ---------------- AUTH ----------------
-  $('toggleLink').onclick = () => {
-    isSignUpMode = !isSignUpMode;
-    $('authTitle').textContent = isSignUpMode ? 'Create your account' : 'Welcome back';
-    $('authSub').textContent = isSignUpMode ? 'Start tracking your study time.' : 'Sign in to see your study log.';
-    $('authSubmitBtn').textContent = isSignUpMode ? 'Create account' : 'Sign in';
-    $('authToggle').innerHTML = isSignUpMode
-      ? 'Already have an account? <a id="toggleLink">Sign in</a>'
-      : 'New here? <a id="toggleLink">Create an account</a>';
-    $('toggleLink').onclick = arguments.callee.caller; // reattach not needed; handled by delegated listener below
-    $('authMsg').textContent = '';
-  };
   // Delegate so the re-rendered link keeps working
   $('authToggle').addEventListener('click', (e) => {
     if(e.target && e.target.id === 'toggleLink'){
