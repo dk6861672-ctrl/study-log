@@ -139,6 +139,15 @@
   .stat-row:last-child{border-bottom:none;}
   .stat-row .val{font-family:'IBM Plex Mono', monospace; color:var(--amber-glow); font-weight:500;}
 
+  .goal-row{display:flex; align-items:center; gap:10px; margin-bottom:6px;}
+  .goal-row input{
+    width:68px; padding:9px 10px; border-radius:8px; border:1px solid var(--line);
+    background:var(--surface-alt); color:var(--ink); font-family:'IBM Plex Mono', monospace; font-size:14px;
+  }
+  .goal-row input:focus{outline:none; border-color:var(--amber);}
+  .goal-row span{font-size:12.5px; color:var(--muted);}
+  .goal-hint{font-size:11.5px; color:var(--muted); margin-top:10px;}
+
   .subj-bar-row{margin-bottom:14px;}
   .subj-bar-row:last-child{margin-bottom:0;}
   .subj-bar-label{display:flex; justify-content:space-between; font-size:13px; margin-bottom:6px;}
@@ -223,6 +232,19 @@
       <div class="controls" id="controls"></div>
     </div>
 
+    <div class="card" id="goalCard">
+      <h2>Daily goal
+        <button type="button" class="btn ghost" id="notifBtn" style="flex:0 0 auto; padding:5px 10px; font-size:11.5px;">Enable reminders</button>
+      </h2>
+      <div class="goal-row">
+        <input type="number" id="goalInput" min="5" step="5" value="60">
+        <span>min / day</span>
+        <button type="button" id="saveGoalBtn" class="btn primary" style="flex:0 0 auto; padding:9px 16px;">Save</button>
+      </div>
+      <div class="stat-row"><span>Progress today</span><span class="val" id="goalProgress">0 / 60m</span></div>
+      <div class="goal-hint" id="goalHint">Checks in every 15 min while this tab is open.</div>
+    </div>
+
     <div class="card">
       <h2>Summary
         <div class="tabs" id="rangeTabs">
@@ -260,23 +282,6 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.database();
-
-// ---- Casual-view deterrents ----
-// NOTE: these do NOT provide real security. Any browser's DevTools/Network
-// tab, "disable JavaScript", or a saved copy of the page bypasses all of
-// this instantly. The actual protection for user data is the Firebase
-// database rules — see the rules JSON provided separately. Keep this block
-// only if you want to discourage casual right-click/view-source snooping.
-document.addEventListener('contextmenu', e => e.preventDefault());
-document.addEventListener('keydown', e => {
-  const k = e.key.toLowerCase();
-  const blocked =
-    e.key === 'F12' ||
-    (e.ctrlKey && e.shiftKey && (k === 'i' || k === 'j' || k === 'c')) ||
-    (e.ctrlKey && k === 'u') ||
-    (e.metaKey && e.altKey && (k === 'i' || k === 'j' || k === 'c'));
-  if(blocked) e.preventDefault();
-});
 
 (function(){
   const RING_CIRC = 703.7;
@@ -380,6 +385,7 @@ document.addEventListener('keydown', e => {
       $('authCard').classList.remove('hidden');
       $('app').classList.add('hidden');
       $('userChip').classList.add('hidden');
+      stopReminders();
     }
   });
 
@@ -429,6 +435,86 @@ document.addEventListener('keydown', e => {
     try{ await db.ref('subjects/' + currentUser.uid).push({ name }); }catch(err){ console.error(err); }
   }
 
+  // ---------------- GOAL & REMINDERS ----------------
+  // Goal lives at /goals/{uid} in Firebase so it's per-account and editable
+  // any time. Reminders are a client-side setInterval, so they only fire
+  // while this tab is open — there's no server pushing them.
+  let dailyGoalMin = 60;
+  let reminderInterval = null;
+  let goalCongratulated = false;
+  let goalCongratDate = todayStr();
+
+  async function loadGoal(){
+    try{
+      const snap = await db.ref('goals/' + currentUser.uid).once('value');
+      const val = snap.val();
+      dailyGoalMin = (val && val.minutes) ? val.minutes : 60;
+    }catch(err){
+      dailyGoalMin = 60;
+    }
+    $('goalInput').value = dailyGoalMin;
+  }
+  async function saveGoal(minutes){
+    dailyGoalMin = minutes;
+    try{ await db.ref('goals/' + currentUser.uid).set({ minutes }); }catch(err){ console.error(err); }
+  }
+  $('saveGoalBtn').onclick = async () => {
+    const minutes = parseInt($('goalInput').value, 10);
+    if(!minutes || minutes < 5) return;
+    await saveGoal(minutes);
+    renderGoalProgress();
+  };
+
+  function todayStudiedSec(){
+    const today = todayStr();
+    let sec = sessions.filter(s => s.date === today).reduce((a,s)=>a+s.sec,0);
+    if(running || elapsedBeforePause > 0) sec += currentElapsedSec();
+    return sec;
+  }
+  function renderGoalProgress(){
+    const studiedMin = Math.floor(todayStudiedSec() / 60);
+    $('goalProgress').textContent = studiedMin + ' / ' + dailyGoalMin + 'm';
+  }
+
+  function updateNotifBtn(){
+    const btn = $('notifBtn');
+    if(!('Notification' in window)){ btn.textContent = 'Not supported here'; btn.disabled = true; return; }
+    if(Notification.permission === 'granted'){ btn.textContent = 'Reminders on'; btn.disabled = true; }
+    else if(Notification.permission === 'denied'){ btn.textContent = 'Blocked — check browser settings'; btn.disabled = true; }
+    else{ btn.textContent = 'Enable reminders'; btn.disabled = false; }
+  }
+  $('notifBtn').onclick = async () => {
+    if(!('Notification' in window)) return;
+    if(Notification.permission === 'default'){
+      await Notification.requestPermission();
+      updateNotifBtn();
+    }
+  };
+
+  function checkGoalReminder(){
+    if(!('Notification' in window) || Notification.permission !== 'granted') return;
+    const today = todayStr();
+    if(today !== goalCongratDate){ goalCongratDate = today; goalCongratulated = false; }
+    const studiedMin = Math.floor(todayStudiedSec() / 60);
+    if(studiedMin >= dailyGoalMin){
+      if(!goalCongratulated){
+        goalCongratulated = true;
+        new Notification('Goal reached! 🎉', { body: 'You hit your ' + dailyGoalMin + ' min goal today. Nice work.' });
+      }
+      return;
+    }
+    new Notification('Time to study', {
+      body: "You're at " + studiedMin + ' of ' + dailyGoalMin + ' min today — keep going toward your goal.'
+    });
+  }
+  function startReminders(){
+    stopReminders();
+    reminderInterval = setInterval(checkGoalReminder, 15 * 60 * 1000);
+  }
+  function stopReminders(){
+    if(reminderInterval){ clearInterval(reminderInterval); reminderInterval = null; }
+  }
+
   // ---------------- SUBJECT PICKER ----------------
   function renderSubjectChips(){
     const wrap = $('subjectChips');
@@ -471,6 +557,7 @@ document.addEventListener('keydown', e => {
     const cyclePos = (sec % 3600) / 3600;
     $('ringProgress').setAttribute('stroke-dashoffset', RING_CIRC * (1 - cyclePos));
     $('activeSubjectLabel').textContent = (running || elapsedBeforePause > 0) && selectedSubject ? selectedSubject : '';
+    renderGoalProgress();
   }
   function renderControls(){
     const controls = $('controls');
@@ -575,15 +662,18 @@ document.addEventListener('keydown', e => {
       return '<div class="hist-row"><div class="left"><span class="subj">'+s.subject+'</span><span class="when">'+dateLabel+'</span></div><span class="dur">'+fmtHM(s.sec)+'</span></div>';
     }).join('');
   }
-  function renderAll(){ renderSummary(); renderSessionList(); }
+  function renderAll(){ renderSummary(); renderSessionList(); renderGoalProgress(); }
 
   async function initAppData(){
     await loadSubjects();
     await loadSessions();
+    await loadGoal();
     renderSubjectChips();
     renderControls();
     updateTimerUI();
     renderAll();
+    updateNotifBtn();
+    startReminders();
   }
 })();
 </script>
