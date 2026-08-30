@@ -422,6 +422,7 @@ const db = firebase.database();
   let sessions = [];
   let subjects = [];
   let subjectKeys = {}; // name -> firebase push key, for custom (removable) subjects
+  let hiddenDefaults = {}; // name -> true, for built-in defaults you've removed
   let selectedSubject = null;
   let running = false;
   let startedAt = null;
@@ -552,16 +553,22 @@ const db = firebase.database();
   async function loadSubjects(){
     subjectKeys = {}; // reset: name -> firebase push key, for custom subjects only
     try{
-      const snap = await db.ref('subjects/' + currentUser.uid).once('value');
-      const val = snap.val() || {};
+      const [subSnap, hiddenSnap] = await Promise.all([
+        db.ref('subjects/' + currentUser.uid).once('value'),
+        db.ref('hiddenDefaults/' + currentUser.uid).once('value')
+      ]);
+      const val = subSnap.val() || {};
+      hiddenDefaults = hiddenSnap.val() || {};
       const custom = [];
       Object.keys(val).forEach(key => {
         const name = val[key].name;
         subjectKeys[name] = key;
         custom.push(name);
       });
-      subjects = [...new Set([...DEFAULT_SUBJECTS, ...custom])];
+      const visibleDefaults = DEFAULT_SUBJECTS.filter(s => !hiddenDefaults[s]);
+      subjects = [...new Set([...visibleDefaults, ...custom])];
     }catch(err){
+      hiddenDefaults = {};
       subjects = [...DEFAULT_SUBJECTS];
     }
   }
@@ -574,16 +581,21 @@ const db = firebase.database();
     }catch(err){ console.error(err); }
   }
   async function removeSubject(name){
-    // Built-in default subjects can't be removed, only ones you've added.
-    if(DEFAULT_SUBJECTS.includes(name)) return;
     // Don't remove a subject mid-session — stop or save that timer first.
     if(name === selectedSubject && (running || elapsedBeforePause > 0)) return;
     subjects = subjects.filter(s => s !== name);
     if(selectedSubject === name) selectedSubject = null;
-    const key = subjectKeys[name];
-    delete subjectKeys[name];
-    if(key){
-      try{ await db.ref('subjects/' + currentUser.uid + '/' + key).remove(); }catch(err){ console.error(err); }
+    if(DEFAULT_SUBJECTS.includes(name)){
+      // Built-in default: can't delete it from Firebase (it isn't stored
+      // there), so just remember it's hidden for this account going forward.
+      hiddenDefaults[name] = true;
+      try{ await db.ref('hiddenDefaults/' + currentUser.uid + '/' + name).set(true); }catch(err){ console.error(err); }
+    } else {
+      const key = subjectKeys[name];
+      delete subjectKeys[name];
+      if(key){
+        try{ await db.ref('subjects/' + currentUser.uid + '/' + key).remove(); }catch(err){ console.error(err); }
+      }
     }
     renderSubjectChips();
     renderControls();
@@ -810,10 +822,9 @@ const db = firebase.database();
   function renderSubjectChips(){
     const wrap = $('subjectChips');
     wrap.innerHTML = subjects.map(s => {
-      const removable = !DEFAULT_SUBJECTS.includes(s);
       return '<div class="chip'+(s===selectedSubject?' selected':'')+'" data-subject="'+s+'">'+
         '<span class="chip-label">'+s+'</span>'+
-        (removable ? '<span class="chip-rm" data-remove="'+s+'" title="Remove subject">&times;</span>' : '') +
+        '<span class="chip-rm" data-remove="'+s+'" title="Remove subject">&times;</span>'+
         '</div>';
     }).join('');
     wrap.querySelectorAll('.chip-label').forEach(label => {
