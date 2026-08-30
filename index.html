@@ -17,12 +17,6 @@
     --c1:#E7A33E; --c2:#6EC5B8; --c3:#B191E0; --c4:#E08A7D; --c5:#7FB3E0; --c6:#C9CF6B;
   }
   *{box-sizing:border-box; margin:0; padding:0;}
-  body, .card, .drawer, .drawer-left, header, footer, .auth-card{
-    -webkit-user-select:none; -moz-user-select:none; -ms-user-select:none; user-select:none;
-  }
-  input, textarea, select{
-    -webkit-user-select:text; -moz-user-select:text; -ms-user-select:text; user-select:text;
-  }
   body{
     background:var(--bg); color:var(--ink); font-family:'Inter', sans-serif;
     min-height:100vh; display:flex; justify-content:center; align-items:flex-start;
@@ -86,15 +80,10 @@
   .chip{
     font-family:'Inter', sans-serif; font-size:13px; padding:7px 14px; border-radius:999px;
     border:1px solid var(--line); background:var(--surface); color:var(--muted); cursor:pointer;
-    transition:all 0.15s ease; display:inline-flex; align-items:center; gap:6px;
+    transition:all 0.15s ease;
   }
   .chip:hover{border-color:var(--amber); color:var(--ink);}
   .chip.selected{background:var(--amber); border-color:var(--amber); color:#1A1408; font-weight:600;}
-  .chip .chip-rm{
-    font-size:14px; line-height:1; opacity:0.6; padding:0 2px;
-  }
-  .chip .chip-rm:hover{opacity:1; color:var(--danger);}
-  .chip.selected .chip-rm:hover{color:#5a1a1a;}
   .subject-input-row{display:flex; gap:8px; justify-content:center;}
   .subject-input-row input{
     padding:9px 12px; border-radius:8px; border:1px solid var(--line);
@@ -218,18 +207,26 @@
     transform:translateX(-100%); transition:transform 0.25s ease;
   }
   .drawer-left.open{transform:translateX(0);}
-  .project-card{border:1px dashed var(--line); border-radius:12px; padding:18px; text-align:left;}
-  .project-card input{
-    width:100%; padding:9px 10px; border-radius:8px; border:1px solid var(--line);
-    background:var(--surface-alt); color:var(--ink); font-family:'Inter',sans-serif; font-size:13px;
-    margin-bottom:10px;
+
+  /* ---- XP card ---- */
+  .section-head{font-family:'Fraunces', serif; font-weight:500; font-size:14px; margin:28px 0 4px;}
+  .xp-card{
+    border:1px solid var(--line); border-radius:12px; padding:18px; text-align:center; margin-bottom:6px;
   }
-  .project-card input:focus{outline:none; border-color:var(--amber);}
-  .project-card .view-title{font-family:'Fraunces', serif; font-size:16px; margin-bottom:6px;}
-  .project-card .view-link{font-size:12.5px; color:var(--amber-glow); word-break:break-all; text-decoration:none;}
-  .project-card .view-link:hover{color:var(--amber); text-decoration:underline;}
-  .project-card .edit-link{font-size:11.5px; color:var(--muted); cursor:pointer; margin-top:12px; display:inline-block;}
-  .project-card .edit-link:hover{color:var(--amber);}
+  .xp-total{font-family:'IBM Plex Mono', monospace; font-size:34px; font-weight:600; color:var(--amber-glow);}
+  .xp-total .unit{font-size:14px; color:var(--muted); font-family:'Inter',sans-serif; margin-left:4px;}
+  .xp-events{margin-top:14px; text-align:left;}
+  .xp-event{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:8px 0; border-bottom:1px solid var(--line); font-size:12.5px;
+  }
+  .xp-event:last-child{border-bottom:none;}
+  .xp-event .left{display:flex; flex-direction:column; gap:1px;}
+  .xp-event .subj{color:var(--ink);}
+  .xp-event .detail{color:var(--muted); font-size:11px;}
+  .xp-event .delta{font-family:'IBM Plex Mono', monospace; font-weight:600;}
+  .xp-event .delta.pos{color:var(--amber-glow);}
+  .xp-event .delta.neg{color:var(--danger);}
 
   .subj-bar-row{margin-bottom:14px;}
   .subj-bar-row:last-child{margin-bottom:0;}
@@ -285,13 +282,13 @@
 <div class="drawer-overlay hidden" id="dotsOverlay"></div>
 <div class="drawer-left" id="projectDrawer">
   <div class="drawer-head">
-    <h2>Upcoming Project</h2>
+    <h2>XP</h2>
     <button type="button" class="drawer-close" id="projectDrawerCloseBtn">&times;</button>
   </div>
-  <div class="drawer-hint">Add a folder to your GitHub repo, turn on GitHub Pages so it's live, then paste that folder's link here — click the card anytime to open it.</div>
-
-  <div class="project-card" id="projectCard"></div>
+  <div class="drawer-hint">1 XP for every 10 minutes you study. If you stop while a goal is still pending, you lose 1 XP per minute left on that goal.</div>
+  <div class="xp-card" id="xpCard"></div>
 </div>
+
 
 <div class="wrap">
 
@@ -397,22 +394,6 @@ const db = firebase.database();
   const RING_CIRC = 703.7;
   const $ = id => document.getElementById(id);
   const pad = n => n.toString().padStart(2,'0');
-
-  // ---------------- COPY / DEVTOOLS DETERRENTS ----------------
-  // These only discourage casual right-click / view-source / devtools use.
-  // They are NOT real security — anyone can still view this page's source,
-  // disable JavaScript, or use browser tools that bypass this. Actual
-  // protection for your data lives in the Firebase security rules, not here.
-  document.addEventListener('contextmenu', e => e.preventDefault());
-  document.addEventListener('dragstart', e => e.preventDefault());
-  document.addEventListener('keydown', e => {
-    const k = e.key.toLowerCase();
-    const blocked =
-      e.key === 'F12' ||
-      (e.ctrlKey && e.shiftKey && (k === 'i' || k === 'j' || k === 'c')) ||
-      (e.ctrlKey && (k === 'u' || k === 's'));
-    if(blocked) e.preventDefault();
-  });
   const todayStr = d => { d = d || new Date(); return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); };
   const fmtHMS = s => pad(Math.floor(s/3600))+':'+pad(Math.floor((s%3600)/60))+':'+pad(Math.floor(s%60));
   const fmtHM = s => { const h=Math.floor(s/3600), m=Math.round((s%3600)/60); return h<=0 ? m+'m' : h+'h '+m+'m'; };
@@ -421,8 +402,6 @@ const db = firebase.database();
 
   let sessions = [];
   let subjects = [];
-  let subjectKeys = {}; // name -> firebase push key, for custom (removable) subjects
-  let hiddenDefaults = {}; // name -> true, for built-in defaults you've removed
   let selectedSubject = null;
   let running = false;
   let startedAt = null;
@@ -431,6 +410,8 @@ const db = firebase.database();
   let currentUser = null;
   let isSignUpMode = false;
   let activeRange = 'today';
+  let xpTotal = 0;
+  let xpEvents = []; // most recent first, {subject, sec, baseXp, penaltyMin, netXp, ts}
 
   // ---------------- TIMER PERSISTENCE (survives reload/backgrounding) ----------------
   const TIMER_KEY = 'studyWatchTimerState';
@@ -551,55 +532,19 @@ const db = firebase.database();
     }catch(err){ console.error(err); }
   }
   async function loadSubjects(){
-    subjectKeys = {}; // reset: name -> firebase push key, for custom subjects only
     try{
-      const [subSnap, hiddenSnap] = await Promise.all([
-        db.ref('subjects/' + currentUser.uid).once('value'),
-        db.ref('hiddenDefaults/' + currentUser.uid).once('value')
-      ]);
-      const val = subSnap.val() || {};
-      hiddenDefaults = hiddenSnap.val() || {};
-      const custom = [];
-      Object.keys(val).forEach(key => {
-        const name = val[key].name;
-        subjectKeys[name] = key;
-        custom.push(name);
-      });
-      const visibleDefaults = DEFAULT_SUBJECTS.filter(s => !hiddenDefaults[s]);
-      subjects = [...new Set([...visibleDefaults, ...custom])];
+      const snap = await db.ref('subjects/' + currentUser.uid).once('value');
+      const val = snap.val() || {};
+      const custom = Object.values(val).map(v => v.name);
+      subjects = [...new Set([...DEFAULT_SUBJECTS, ...custom])];
     }catch(err){
-      hiddenDefaults = {};
       subjects = [...DEFAULT_SUBJECTS];
     }
   }
   async function addSubject(name){
     if(subjects.includes(name)) return;
     subjects.push(name);
-    try{
-      const ref = await db.ref('subjects/' + currentUser.uid).push({ name });
-      subjectKeys[name] = ref.key;
-    }catch(err){ console.error(err); }
-  }
-  async function removeSubject(name){
-    // Don't remove a subject mid-session — stop or save that timer first.
-    if(name === selectedSubject && (running || elapsedBeforePause > 0)) return;
-    subjects = subjects.filter(s => s !== name);
-    if(selectedSubject === name) selectedSubject = null;
-    if(DEFAULT_SUBJECTS.includes(name)){
-      // Built-in default: can't delete it from Firebase (it isn't stored
-      // there), so just remember it's hidden for this account going forward.
-      hiddenDefaults[name] = true;
-      try{ await db.ref('hiddenDefaults/' + currentUser.uid + '/' + name).set(true); }catch(err){ console.error(err); }
-    } else {
-      const key = subjectKeys[name];
-      delete subjectKeys[name];
-      if(key){
-        try{ await db.ref('subjects/' + currentUser.uid + '/' + key).remove(); }catch(err){ console.error(err); }
-      }
-    }
-    renderSubjectChips();
-    renderControls();
-    populateGoalSubjectSelect();
+    try{ await db.ref('subjects/' + currentUser.uid).push({ name }); }catch(err){ console.error(err); }
   }
 
   // ---------------- GOALS & NOTIFICATIONS ----------------
@@ -731,6 +676,62 @@ const db = firebase.database();
     if(changed) renderGoalsList();
   }
 
+  // ---------------- XP ----------------
+  // Total lives at /xp/{uid}/total (a running counter, updated via a Firebase
+  // transaction so it can't race with itself). Each session that earns or
+  // costs XP also writes a small record to /xpEvents/{uid}/{pushId} so the
+  // drawer can show a short "why" history under the total.
+  // Rule: +1 XP per 10 minutes studied. If a goal for that subject is still
+  // pending when the session is stopped, subtract 1 XP per minute still left
+  // on the goal (this can make the net change negative).
+  async function loadXp(){
+    try{
+      const snap = await db.ref('xp/' + currentUser.uid + '/total').once('value');
+      xpTotal = snap.val() || 0;
+    }catch(err){ xpTotal = 0; }
+    try{
+      const snap = await db.ref('xpEvents/' + currentUser.uid).limitToLast(8).once('value');
+      const val = snap.val() || {};
+      xpEvents = Object.values(val).sort((a,b) => (b.ts||0) - (a.ts||0));
+    }catch(err){ xpEvents = []; }
+  }
+  async function applyXpForSession(subject, sec){
+    const baseXp = Math.floor(sec / 600); // 1 XP per 10 min studied
+    let penaltyMin = 0;
+    const goal = subjectGoals.find(g => g.subject === subject && !g.done);
+    if(goal){
+      const remainSec = goalRemainingSec(goal); // already reflects this session's minutes
+      if(remainSec > 0) penaltyMin = Math.ceil(remainSec / 60);
+    }
+    const netXp = baseXp - penaltyMin;
+    xpTotal += netXp;
+    const event = { subject: subject, sec: sec, baseXp: baseXp, penaltyMin: penaltyMin, netXp: netXp, ts: Date.now() };
+    xpEvents.unshift(event);
+    xpEvents = xpEvents.slice(0, 8);
+    try{
+      await db.ref('xp/' + currentUser.uid + '/total').transaction(cur => (cur || 0) + netXp);
+      await db.ref('xpEvents/' + currentUser.uid).push(Object.assign({}, event, { ts: firebase.database.ServerValue.TIMESTAMP }));
+    }catch(err){ console.error(err); }
+    renderXpCard();
+  }
+  function renderXpCard(){
+    const wrap = $('xpCard');
+    if(!wrap) return;
+    const eventsHtml = xpEvents.length === 0
+      ? '<div class="empty-state">No XP yet — finish a session to start earning.</div>'
+      : xpEvents.map(e => {
+          const sign = e.netXp >= 0 ? 'pos' : 'neg';
+          const label = e.netXp >= 0 ? ('+' + e.netXp) : e.netXp;
+          const detail = e.penaltyMin > 0
+            ? (fmtHM(e.sec) + ' studied · +' + e.baseXp + ' − ' + e.penaltyMin + ' pending goal')
+            : (fmtHM(e.sec) + ' studied');
+          return '<div class="xp-event"><div class="left"><span class="subj">'+e.subject+'</span><span class="detail">'+detail+'</span></div>'+
+            '<span class="delta '+sign+'">'+label+' XP</span></div>';
+        }).join('');
+    wrap.innerHTML = '<div class="xp-total">'+xpTotal+'<span class="unit">XP</span></div>'+
+      '<div class="xp-events">'+eventsHtml+'</div>';
+  }
+
   // ---------------- DRAWER ----------------
   function openDrawer(){
     populateGoalSubjectSelect();
@@ -750,59 +751,9 @@ const db = firebase.database();
   $('drawerCloseBtn').onclick = closeDrawer;
   $('drawerOverlay').onclick = closeDrawer;
 
-  // ---------------- UPCOMING PROJECT ----------------
-  // A single card at /upcomingProject/{uid} in Firebase — just a name and
-  // a link, so it's ready to fill in once a new file/page goes live.
-  let upcomingProject = null; // {title, url}
-
-  async function loadUpcomingProject(){
-    try{
-      const snap = await db.ref('upcomingProject/' + currentUser.uid).once('value');
-      upcomingProject = snap.val() || null;
-    }catch(err){
-      upcomingProject = null;
-    }
-  }
-  async function saveUpcomingProject(title, url){
-    upcomingProject = { title: title, url: url };
-    try{ await db.ref('upcomingProject/' + currentUser.uid).set(upcomingProject); }catch(err){ console.error(err); }
-    renderProjectCard();
-  }
-  async function clearUpcomingProject(){
-    upcomingProject = null;
-    try{ await db.ref('upcomingProject/' + currentUser.uid).remove(); }catch(err){ console.error(err); }
-    renderProjectCard();
-  }
-  function renderProjectForm(){
-    const wrap = $('projectCard');
-    const t = upcomingProject ? (upcomingProject.title || '') : '';
-    const u = upcomingProject ? (upcomingProject.url || '') : '';
-    wrap.innerHTML =
-      '<input type="text" id="projectTitleInput" placeholder="Project name" maxlength="60" value="'+t+'">'+
-      '<input type="url" id="projectUrlInput" placeholder="Live folder link, e.g. https://you.github.io/repo/foldername/" value="'+u+'">'+
-      '<button type="button" class="btn primary" id="saveProjectBtn" style="width:100%;">Save</button>';
-    $('saveProjectBtn').onclick = async () => {
-      const title = $('projectTitleInput').value.trim();
-      const url = $('projectUrlInput').value.trim();
-      if(!title) return;
-      await saveUpcomingProject(title, url);
-    };
-  }
-  function renderProjectCard(){
-    const wrap = $('projectCard');
-    if(upcomingProject && upcomingProject.title){
-      wrap.innerHTML =
-        '<div class="view-title">'+upcomingProject.title+'</div>'+
-        (upcomingProject.url ? '<a class="view-link" href="'+upcomingProject.url+'" target="_blank" rel="noopener">'+upcomingProject.url+'</a>' : '<span class="drawer-hint" style="margin:0;">No link yet.</span>')+
-        '<div><span class="edit-link" id="editProjectLink">Edit</span> &nbsp; <span class="edit-link" id="clearProjectLink">Remove</span></div>';
-      $('editProjectLink').onclick = renderProjectForm;
-      $('clearProjectLink').onclick = clearUpcomingProject;
-    } else {
-      renderProjectForm();
-    }
-  }
+  // ---------------- XP DRAWER (left, three-dots) ----------------
   function openProjectDrawer(){
-    renderProjectCard();
+    renderXpCard();
     $('dotsOverlay').classList.remove('hidden');
     requestAnimationFrame(() => {
       $('dotsOverlay').classList.add('open');
@@ -821,23 +772,14 @@ const db = firebase.database();
   // ---------------- SUBJECT PICKER ----------------
   function renderSubjectChips(){
     const wrap = $('subjectChips');
-    wrap.innerHTML = subjects.map(s => {
-      return '<div class="chip'+(s===selectedSubject?' selected':'')+'" data-subject="'+s+'">'+
-        '<span class="chip-label">'+s+'</span>'+
-        '<span class="chip-rm" data-remove="'+s+'" title="Remove subject">&times;</span>'+
-        '</div>';
-    }).join('');
-    wrap.querySelectorAll('.chip-label').forEach(label => {
-      label.onclick = () => {
-        selectedSubject = label.parentElement.getAttribute('data-subject');
+    wrap.innerHTML = subjects.map(s =>
+      '<div class="chip'+(s===selectedSubject?' selected':'')+'" data-subject="'+s+'">'+s+'</div>'
+    ).join('');
+    wrap.querySelectorAll('.chip').forEach(chip => {
+      chip.onclick = () => {
+        selectedSubject = chip.getAttribute('data-subject');
         renderSubjectChips();
         renderControls();
-      };
-    });
-    wrap.querySelectorAll('.chip-rm').forEach(btn => {
-      btn.onclick = (e) => {
-        e.stopPropagation();
-        removeSubject(btn.getAttribute('data-remove'));
       };
     });
   }
@@ -912,6 +854,7 @@ const db = firebase.database();
     if(sec >= 5){
       await insertSession(sec, subject);
       await loadSessions();
+      await applyXpForSession(subject, sec);
       checkGoalCompletion(subject);
     }
     selectedSubject = null;
@@ -983,6 +926,7 @@ const db = firebase.database();
     await loadSubjects();
     await loadSessions();
     await loadSubjectGoals();
+    await loadXp();
     renderSubjectChips();
     renderControls();
     updateTimerUI();
@@ -992,7 +936,6 @@ const db = firebase.database();
     updateNotifBtn();
     notifyNoGoalIfNeeded();
     $('menuBtn').classList.remove('hidden');
-    await loadUpcomingProject();
     $('dotsBtn').classList.remove('hidden');
   }
 })();
