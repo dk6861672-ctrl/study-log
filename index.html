@@ -287,6 +287,7 @@
   </div>
   <div class="drawer-hint">1 XP for every 10 minutes you study. If you stop while a goal is still pending, you lose 1 XP per minute left on that goal.</div>
   <div class="xp-card" id="xpCard"></div>
+  <button type="button" class="btn ghost" id="backfillXpBtn" style="width:100%; margin-top:10px;">Backfill XP from past sessions</button>
 </div>
 
 
@@ -731,6 +732,31 @@ const db = firebase.database();
     wrap.innerHTML = '<div class="xp-total">'+xpTotal+'<span class="unit">XP</span></div>'+
       '<div class="xp-events">'+eventsHtml+'</div>';
   }
+
+  // One-time backfill: award XP for sessions that predate the XP system.
+  // Note: past goal state (what was "pending" at the moment each old session
+  // was stopped) isn't stored anywhere, so this can only award the base XP
+  // (1 per 10 min) for historical sessions — it can't reconstruct penalties.
+  async function backfillXpFromHistory(){
+    if(!confirm('This will award base XP (1 per 10 min, no goal penalties) for all your existing sessions that don\'t already have an XP event. Continue?')) return;
+    const totalBaseXp = sessions.reduce((sum, s) => sum + Math.floor(s.sec / 600), 0);
+    if(totalBaseXp <= 0){ alert('Nothing to backfill.'); return; }
+    try{
+      await db.ref('xp/' + currentUser.uid + '/total').transaction(cur => (cur || 0) + totalBaseXp);
+      await db.ref('xpEvents/' + currentUser.uid).push({
+        subject: 'Backfill',
+        sec: sessions.reduce((a,s)=>a+s.sec,0),
+        baseXp: totalBaseXp,
+        penaltyMin: 0,
+        netXp: totalBaseXp,
+        ts: firebase.database.ServerValue.TIMESTAMP
+      });
+    }catch(err){ console.error(err); alert('Backfill failed — check console.'); return; }
+    await loadXp();
+    renderXpCard();
+    alert('Backfilled ' + totalBaseXp + ' XP.');
+  }
+  $('backfillXpBtn').onclick = backfillXpFromHistory;
 
   // ---------------- DRAWER ----------------
   function openDrawer(){
