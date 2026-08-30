@@ -17,6 +17,12 @@
     --c1:#E7A33E; --c2:#6EC5B8; --c3:#B191E0; --c4:#E08A7D; --c5:#7FB3E0; --c6:#C9CF6B;
   }
   *{box-sizing:border-box; margin:0; padding:0;}
+  body, .card, .drawer, .drawer-left, header, footer, .auth-card{
+    -webkit-user-select:none; -moz-user-select:none; -ms-user-select:none; user-select:none;
+  }
+  input, textarea, select{
+    -webkit-user-select:text; -moz-user-select:text; -ms-user-select:text; user-select:text;
+  }
   body{
     background:var(--bg); color:var(--ink); font-family:'Inter', sans-serif;
     min-height:100vh; display:flex; justify-content:center; align-items:flex-start;
@@ -139,14 +145,86 @@
   .stat-row:last-child{border-bottom:none;}
   .stat-row .val{font-family:'IBM Plex Mono', monospace; color:var(--amber-glow); font-weight:500;}
 
-  .goal-row{display:flex; align-items:center; gap:10px; margin-bottom:6px;}
-  .goal-row input{
-    width:68px; padding:9px 10px; border-radius:8px; border:1px solid var(--line);
+  .goal-add-row{display:flex; gap:8px; margin-bottom:10px; align-items:center;}
+  .goal-add-row select{
+    flex:1; padding:9px 10px; border-radius:8px; border:1px solid var(--line);
+    background:var(--surface-alt); color:var(--ink); font-family:'Inter',sans-serif; font-size:13px;
+  }
+  .goal-add-row input{
+    width:64px; padding:9px 10px; border-radius:8px; border:1px solid var(--line);
     background:var(--surface-alt); color:var(--ink); font-family:'IBM Plex Mono', monospace; font-size:14px;
   }
-  .goal-row input:focus{outline:none; border-color:var(--amber);}
-  .goal-row span{font-size:12.5px; color:var(--muted);}
-  .goal-hint{font-size:11.5px; color:var(--muted); margin-top:10px;}
+  .goal-add-row select:focus, .goal-add-row input:focus{outline:none; border-color:var(--amber);}
+  .goal-add-row span{font-size:12.5px; color:var(--muted);}
+
+  .goal-item{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:10px 0; border-bottom:1px solid var(--line); font-size:13px;
+  }
+  .goal-item:last-child{border-bottom:none;}
+  .goal-item .left{display:flex; flex-direction:column; gap:2px;}
+  .goal-item .subj{color:var(--ink); font-weight:500;}
+  .goal-item .remain{font-family:'IBM Plex Mono', monospace; color:var(--amber-glow); font-size:11.5px;}
+  .goal-item .remain.done{color:var(--muted);}
+  .goal-item .rm{background:none; border:none; color:var(--muted); cursor:pointer; font-size:16px; padding:2px 6px;}
+  .goal-item .rm:hover{color:var(--danger);}
+
+  /* ---- Hamburger menu + drawer ---- */
+  .menu-btn{
+    position:fixed; top:22px; right:22px; z-index:40;
+    width:38px; height:38px; border-radius:10px; border:1px solid var(--line);
+    background:var(--surface); cursor:pointer; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:4px;
+  }
+  .menu-btn:hover{border-color:var(--amber);}
+  .menu-btn span{width:16px; height:2px; background:var(--muted); border-radius:1px; transition:background 0.15s ease;}
+  .menu-btn:hover span{background:var(--amber);}
+  .drawer-overlay{
+    position:fixed; inset:0; background:rgba(10,12,16,0.6); z-index:45;
+    opacity:0; transition:opacity 0.2s ease;
+  }
+  .drawer-overlay.open{opacity:1;}
+  .drawer{
+    position:fixed; top:0; right:0; height:100%; width:320px; max-width:88vw;
+    background:var(--surface); border-left:1px solid var(--line); z-index:50;
+    padding:24px; overflow-y:auto;
+    transform:translateX(100%); transition:transform 0.25s ease;
+  }
+  .drawer.open{transform:translateX(0);}
+  .drawer-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;}
+  .drawer-head h2{font-family:'Fraunces', serif; font-weight:500; font-size:16px;}
+  .drawer-close{background:none; border:none; color:var(--muted); font-size:22px; cursor:pointer; line-height:1;}
+  .drawer-close:hover{color:var(--amber);}
+  .drawer-hint{font-size:11.5px; color:var(--muted); margin:2px 0 18px;}
+
+  /* ---- Three-dot menu (top-left) + upcoming project card ---- */
+  .dots-btn{
+    position:fixed; top:22px; left:22px; z-index:40;
+    width:38px; height:38px; border-radius:10px; border:1px solid var(--line);
+    background:var(--surface); cursor:pointer; display:flex; align-items:center; justify-content:center; gap:3px;
+  }
+  .dots-btn:hover{border-color:var(--amber);}
+  .dots-btn span{width:4px; height:4px; border-radius:50%; background:var(--muted); transition:background 0.15s ease;}
+  .dots-btn:hover span{background:var(--amber);}
+  .drawer-left{
+    position:fixed; top:0; left:0; height:100%; width:320px; max-width:88vw;
+    background:var(--surface); border-right:1px solid var(--line); z-index:50;
+    padding:24px; overflow-y:auto;
+    transform:translateX(-100%); transition:transform 0.25s ease;
+  }
+  .drawer-left.open{transform:translateX(0);}
+  .project-card{border:1px dashed var(--line); border-radius:12px; padding:18px; text-align:left;}
+  .project-card input{
+    width:100%; padding:9px 10px; border-radius:8px; border:1px solid var(--line);
+    background:var(--surface-alt); color:var(--ink); font-family:'Inter',sans-serif; font-size:13px;
+    margin-bottom:10px;
+  }
+  .project-card input:focus{outline:none; border-color:var(--amber);}
+  .project-card .view-title{font-family:'Fraunces', serif; font-size:16px; margin-bottom:6px;}
+  .project-card .view-link{font-size:12.5px; color:var(--amber-glow); word-break:break-all; text-decoration:none;}
+  .project-card .view-link:hover{color:var(--amber); text-decoration:underline;}
+  .project-card .edit-link{font-size:11.5px; color:var(--muted); cursor:pointer; margin-top:12px; display:inline-block;}
+  .project-card .edit-link:hover{color:var(--amber);}
 
   .subj-bar-row{margin-bottom:14px;}
   .subj-bar-row:last-child{margin-bottom:0;}
@@ -170,6 +248,46 @@
 </style>
 </head>
 <body>
+
+<button type="button" id="menuBtn" class="menu-btn hidden" aria-label="Study goals menu">
+  <span></span><span></span><span></span>
+</button>
+
+<div class="drawer-overlay hidden" id="drawerOverlay"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-head">
+    <h2>Study goals</h2>
+    <button type="button" class="drawer-close" id="drawerCloseBtn">&times;</button>
+  </div>
+  <div class="drawer-hint">Add extra hours to study for any subject. You'll get a notification if no goal is set, a confirmation when you add one, and a nudge when you reach it.</div>
+
+  <button type="button" class="btn ghost" id="notifBtn" style="width:100%; margin-bottom:20px;">Enable reminders</button>
+
+  <div class="goal-add-row">
+    <select id="goalSubjectSelect"></select>
+    <input type="number" id="goalHoursInput" min="0.5" step="0.5" placeholder="2">
+    <span>hrs</span>
+  </div>
+  <button type="button" id="addGoalBtn" class="btn primary" style="width:100%; margin-bottom:20px;">Add goal</button>
+
+  <div id="goalsList"></div>
+</div>
+
+<button type="button" id="dotsBtn" class="dots-btn hidden" aria-label="More menu">
+  <span></span><span></span><span></span>
+</button>
+
+<div class="drawer-overlay hidden" id="dotsOverlay"></div>
+<div class="drawer-left" id="projectDrawer">
+  <div class="drawer-head">
+    <h2>Upcoming Project</h2>
+    <button type="button" class="drawer-close" id="projectDrawerCloseBtn">&times;</button>
+  </div>
+  <div class="drawer-hint">Add a folder to your GitHub repo, turn on GitHub Pages so it's live, then paste that folder's link here — click the card anytime to open it.</div>
+
+  <div class="project-card" id="projectCard"></div>
+</div>
+
 <div class="wrap">
 
   <header>
@@ -232,19 +350,6 @@
       <div class="controls" id="controls"></div>
     </div>
 
-    <div class="card" id="goalCard">
-      <h2>Daily goal
-        <button type="button" class="btn ghost" id="notifBtn" style="flex:0 0 auto; padding:5px 10px; font-size:11.5px;">Enable reminders</button>
-      </h2>
-      <div class="goal-row">
-        <input type="number" id="goalInput" min="5" step="5" value="60">
-        <span>min / day</span>
-        <button type="button" id="saveGoalBtn" class="btn primary" style="flex:0 0 auto; padding:9px 16px;">Save</button>
-      </div>
-      <div class="stat-row"><span>Progress today</span><span class="val" id="goalProgress">0 / 60m</span></div>
-      <div class="goal-hint" id="goalHint">Checks in every 15 min while this tab is open.</div>
-    </div>
-
     <div class="card">
       <h2>Summary
         <div class="tabs" id="rangeTabs">
@@ -287,6 +392,22 @@ const db = firebase.database();
   const RING_CIRC = 703.7;
   const $ = id => document.getElementById(id);
   const pad = n => n.toString().padStart(2,'0');
+
+  // ---------------- COPY / DEVTOOLS DETERRENTS ----------------
+  // These only discourage casual right-click / view-source / devtools use.
+  // They are NOT real security — anyone can still view this page's source,
+  // disable JavaScript, or use browser tools that bypass this. Actual
+  // protection for your data lives in the Firebase security rules, not here.
+  document.addEventListener('contextmenu', e => e.preventDefault());
+  document.addEventListener('dragstart', e => e.preventDefault());
+  document.addEventListener('keydown', e => {
+    const k = e.key.toLowerCase();
+    const blocked =
+      e.key === 'F12' ||
+      (e.ctrlKey && e.shiftKey && (k === 'i' || k === 'j' || k === 'c')) ||
+      (e.ctrlKey && (k === 'u' || k === 's'));
+    if(blocked) e.preventDefault();
+  });
   const todayStr = d => { d = d || new Date(); return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); };
   const fmtHMS = s => pad(Math.floor(s/3600))+':'+pad(Math.floor((s%3600)/60))+':'+pad(Math.floor(s%60));
   const fmtHM = s => { const h=Math.floor(s/3600), m=Math.round((s%3600)/60); return h<=0 ? m+'m' : h+'h '+m+'m'; };
@@ -385,7 +506,10 @@ const db = firebase.database();
       $('authCard').classList.remove('hidden');
       $('app').classList.add('hidden');
       $('userChip').classList.add('hidden');
-      stopReminders();
+      $('menuBtn').classList.add('hidden');
+      closeDrawer();
+      $('dotsBtn').classList.add('hidden');
+      closeProjectDrawer();
     }
   });
 
@@ -435,46 +559,90 @@ const db = firebase.database();
     try{ await db.ref('subjects/' + currentUser.uid).push({ name }); }catch(err){ console.error(err); }
   }
 
-  // ---------------- GOAL & REMINDERS ----------------
-  // Goal lives at /goals/{uid} in Firebase so it's per-account and editable
-  // any time. Reminders are a client-side setInterval, so they only fire
-  // while this tab is open — there's no server pushing them.
-  let dailyGoalMin = 60;
-  let reminderInterval = null;
-  let goalCongratulated = false;
-  let goalCongratDate = todayStr();
+  // ---------------- GOALS & NOTIFICATIONS ----------------
+  // Goals live at /subjectGoals/{uid}/{goalId} in Firebase: each one is
+  // "study N more hours of <subject>", captured from the moment it's added.
+  // Notifications are event-driven, not on a timer: one when you have no
+  // goal set, one confirming a goal was added, and one the moment a goal
+  // is actually reached (checked live while the matching timer runs).
+  let subjectGoals = []; // {id, subject, targetSec, baselineSec, done}
 
-  async function loadGoal(){
+  async function loadSubjectGoals(){
     try{
-      const snap = await db.ref('goals/' + currentUser.uid).once('value');
-      const val = snap.val();
-      dailyGoalMin = (val && val.minutes) ? val.minutes : 60;
+      const snap = await db.ref('subjectGoals/' + currentUser.uid).once('value');
+      const val = snap.val() || {};
+      subjectGoals = Object.keys(val).map(key => Object.assign({ id: key }, val[key]));
     }catch(err){
-      dailyGoalMin = 60;
+      subjectGoals = [];
     }
-    $('goalInput').value = dailyGoalMin;
   }
-  async function saveGoal(minutes){
-    dailyGoalMin = minutes;
-    try{ await db.ref('goals/' + currentUser.uid).set({ minutes }); }catch(err){ console.error(err); }
-  }
-  $('saveGoalBtn').onclick = async () => {
-    const minutes = parseInt($('goalInput').value, 10);
-    if(!minutes || minutes < 5) return;
-    await saveGoal(minutes);
-    renderGoalProgress();
-  };
-
-  function todayStudiedSec(){
-    const today = todayStr();
-    let sec = sessions.filter(s => s.date === today).reduce((a,s)=>a+s.sec,0);
-    if(running || elapsedBeforePause > 0) sec += currentElapsedSec();
+  function totalSubjectStudiedSec(subject){
+    let sec = sessions.filter(s => s.subject === subject).reduce((a,s)=>a+s.sec,0);
+    if(selectedSubject === subject && (running || elapsedBeforePause > 0)) sec += currentElapsedSec();
     return sec;
   }
-  function renderGoalProgress(){
-    const studiedMin = Math.floor(todayStudiedSec() / 60);
-    $('goalProgress').textContent = studiedMin + ' / ' + dailyGoalMin + 'm';
+  function goalRemainingSec(g){
+    const studiedSinceAdded = totalSubjectStudiedSec(g.subject) - g.baselineSec;
+    return Math.max(0, g.targetSec - studiedSinceAdded);
   }
+  function canNotify(){
+    return ('Notification' in window) && Notification.permission === 'granted';
+  }
+  async function addSubjectGoal(subject, hours){
+    const goal = {
+      subject: subject,
+      targetSec: Math.round(hours * 3600),
+      baselineSec: Math.round(totalSubjectStudiedSec(subject)),
+      done: false,
+      createdAt: Date.now()
+    };
+    goal.id = 'local-' + Date.now();
+    try{
+      const ref = await db.ref('subjectGoals/' + currentUser.uid).push(goal);
+      goal.id = ref.key;
+    }catch(err){ console.error(err); }
+    subjectGoals.push(goal);
+    renderGoalsList();
+    if(canNotify()){
+      new Notification('Goal set', { body: 'Study ' + hours + ' more hour' + (hours===1?'':'s') + ' of ' + subject + ' — you got this.' });
+    }
+  }
+  async function removeSubjectGoal(id){
+    subjectGoals = subjectGoals.filter(g => g.id !== id);
+    renderGoalsList();
+    try{ await db.ref('subjectGoals/' + currentUser.uid + '/' + id).remove(); }catch(err){ console.error(err); }
+  }
+  async function markGoalDone(id){
+    try{ await db.ref('subjectGoals/' + currentUser.uid + '/' + id).update({ done: true }); }catch(err){ console.error(err); }
+  }
+  function populateGoalSubjectSelect(){
+    $('goalSubjectSelect').innerHTML = subjects.map(s => '<option value="'+s+'">'+s+'</option>').join('');
+  }
+  function renderGoalsList(){
+    const wrap = $('goalsList');
+    if(subjectGoals.length === 0){
+      wrap.innerHTML = '<div class="empty-state">No goals yet — add one above.</div>';
+      return;
+    }
+    wrap.innerHTML = subjectGoals.map(g => {
+      const remain = goalRemainingSec(g);
+      const isDone = g.done || remain <= 0;
+      const label = isDone ? 'Done ✓' : fmtHM(remain) + ' left';
+      return '<div class="goal-item"><div class="left"><span class="subj">'+g.subject+'</span>'+
+        '<span class="remain'+(isDone?' done':'')+'">'+label+'</span></div>'+
+        '<button type="button" class="rm" data-id="'+g.id+'" aria-label="Remove goal">&times;</button></div>';
+    }).join('');
+    wrap.querySelectorAll('.rm').forEach(btn => {
+      btn.onclick = () => removeSubjectGoal(btn.getAttribute('data-id'));
+    });
+  }
+  $('addGoalBtn').onclick = async () => {
+    const subject = $('goalSubjectSelect').value;
+    const hours = parseFloat($('goalHoursInput').value);
+    if(!subject || !hours || hours <= 0) return;
+    await addSubjectGoal(subject, hours);
+    $('goalHoursInput').value = '';
+  };
 
   function updateNotifBtn(){
     const btn = $('notifBtn');
@@ -488,32 +656,124 @@ const db = firebase.database();
     if(Notification.permission === 'default'){
       await Notification.requestPermission();
       updateNotifBtn();
+      notifyNoGoalIfNeeded();
     }
   };
 
-  function checkGoalReminder(){
-    if(!('Notification' in window) || Notification.permission !== 'granted') return;
-    const today = todayStr();
-    if(today !== goalCongratDate){ goalCongratDate = today; goalCongratulated = false; }
-    const studiedMin = Math.floor(todayStudiedSec() / 60);
-    if(studiedMin >= dailyGoalMin){
-      if(!goalCongratulated){
-        goalCongratulated = true;
-        new Notification('Goal reached! 🎉', { body: 'You hit your ' + dailyGoalMin + ' min goal today. Nice work.' });
-      }
-      return;
+  // Fires once per app load if the user has no goals at all — nudges them
+  // to set one instead of waiting around.
+  function notifyNoGoalIfNeeded(){
+    if(!canNotify()) return;
+    if(subjectGoals.length === 0){
+      new Notification('No study goal set', { body: 'Open the ☰ menu and add how many hours you want to study, for any subject.' });
     }
-    new Notification('Time to study', {
-      body: "You're at " + studiedMin + ' of ' + dailyGoalMin + ' min today — keep going toward your goal.'
+  }
+  // Checks one subject's goals right now — called live while a timer for
+  // that subject is running, and again right after a session is saved —
+  // so "goal reached" fires the moment it actually happens, not on a delay.
+  function checkGoalCompletion(subject){
+    if(!subject) return;
+    let changed = false;
+    subjectGoals.forEach(g => {
+      if(g.done || g.subject !== subject) return;
+      if(goalRemainingSec(g) <= 0){
+        g.done = true;
+        changed = true;
+        markGoalDone(g.id);
+        if(canNotify()){
+          new Notification('Goal reached! 🎉', { body: g.subject + ' — you hit your target. Nice work.' });
+        }
+      }
+    });
+    if(changed) renderGoalsList();
+  }
+
+  // ---------------- DRAWER ----------------
+  function openDrawer(){
+    populateGoalSubjectSelect();
+    renderGoalsList();
+    $('drawerOverlay').classList.remove('hidden');
+    requestAnimationFrame(() => {
+      $('drawerOverlay').classList.add('open');
+      $('drawer').classList.add('open');
     });
   }
-  function startReminders(){
-    stopReminders();
-    reminderInterval = setInterval(checkGoalReminder, 15 * 60 * 1000);
+  function closeDrawer(){
+    $('drawerOverlay').classList.remove('open');
+    $('drawer').classList.remove('open');
+    setTimeout(() => $('drawerOverlay').classList.add('hidden'), 220);
   }
-  function stopReminders(){
-    if(reminderInterval){ clearInterval(reminderInterval); reminderInterval = null; }
+  $('menuBtn').onclick = openDrawer;
+  $('drawerCloseBtn').onclick = closeDrawer;
+  $('drawerOverlay').onclick = closeDrawer;
+
+  // ---------------- UPCOMING PROJECT ----------------
+  // A single card at /upcomingProject/{uid} in Firebase — just a name and
+  // a link, so it's ready to fill in once a new file/page goes live.
+  let upcomingProject = null; // {title, url}
+
+  async function loadUpcomingProject(){
+    try{
+      const snap = await db.ref('upcomingProject/' + currentUser.uid).once('value');
+      upcomingProject = snap.val() || null;
+    }catch(err){
+      upcomingProject = null;
+    }
   }
+  async function saveUpcomingProject(title, url){
+    upcomingProject = { title: title, url: url };
+    try{ await db.ref('upcomingProject/' + currentUser.uid).set(upcomingProject); }catch(err){ console.error(err); }
+    renderProjectCard();
+  }
+  async function clearUpcomingProject(){
+    upcomingProject = null;
+    try{ await db.ref('upcomingProject/' + currentUser.uid).remove(); }catch(err){ console.error(err); }
+    renderProjectCard();
+  }
+  function renderProjectForm(){
+    const wrap = $('projectCard');
+    const t = upcomingProject ? (upcomingProject.title || '') : '';
+    const u = upcomingProject ? (upcomingProject.url || '') : '';
+    wrap.innerHTML =
+      '<input type="text" id="projectTitleInput" placeholder="Project name" maxlength="60" value="'+t+'">'+
+      '<input type="url" id="projectUrlInput" placeholder="Live folder link, e.g. https://you.github.io/repo/foldername/" value="'+u+'">'+
+      '<button type="button" class="btn primary" id="saveProjectBtn" style="width:100%;">Save</button>';
+    $('saveProjectBtn').onclick = async () => {
+      const title = $('projectTitleInput').value.trim();
+      const url = $('projectUrlInput').value.trim();
+      if(!title) return;
+      await saveUpcomingProject(title, url);
+    };
+  }
+  function renderProjectCard(){
+    const wrap = $('projectCard');
+    if(upcomingProject && upcomingProject.title){
+      wrap.innerHTML =
+        '<div class="view-title">'+upcomingProject.title+'</div>'+
+        (upcomingProject.url ? '<a class="view-link" href="'+upcomingProject.url+'" target="_blank" rel="noopener">'+upcomingProject.url+'</a>' : '<span class="drawer-hint" style="margin:0;">No link yet.</span>')+
+        '<div><span class="edit-link" id="editProjectLink">Edit</span> &nbsp; <span class="edit-link" id="clearProjectLink">Remove</span></div>';
+      $('editProjectLink').onclick = renderProjectForm;
+      $('clearProjectLink').onclick = clearUpcomingProject;
+    } else {
+      renderProjectForm();
+    }
+  }
+  function openProjectDrawer(){
+    renderProjectCard();
+    $('dotsOverlay').classList.remove('hidden');
+    requestAnimationFrame(() => {
+      $('dotsOverlay').classList.add('open');
+      $('projectDrawer').classList.add('open');
+    });
+  }
+  function closeProjectDrawer(){
+    $('dotsOverlay').classList.remove('open');
+    $('projectDrawer').classList.remove('open');
+    setTimeout(() => $('dotsOverlay').classList.add('hidden'), 220);
+  }
+  $('dotsBtn').onclick = openProjectDrawer;
+  $('projectDrawerCloseBtn').onclick = closeProjectDrawer;
+  $('dotsOverlay').onclick = closeProjectDrawer;
 
   // ---------------- SUBJECT PICKER ----------------
   function renderSubjectChips(){
@@ -538,6 +798,7 @@ const db = firebase.database();
     input.value = '';
     renderSubjectChips();
     renderControls();
+    populateGoalSubjectSelect();
   };
   $('newSubjectInput').addEventListener('keydown', (e) => {
     if(e.key === 'Enter'){ e.preventDefault(); $('addSubjectBtn').click(); }
@@ -557,7 +818,8 @@ const db = firebase.database();
     const cyclePos = (sec % 3600) / 3600;
     $('ringProgress').setAttribute('stroke-dashoffset', RING_CIRC * (1 - cyclePos));
     $('activeSubjectLabel').textContent = (running || elapsedBeforePause > 0) && selectedSubject ? selectedSubject : '';
-    renderGoalProgress();
+    if(running) checkGoalCompletion(selectedSubject);
+    if($('drawer').classList.contains('open')) renderGoalsList();
   }
   function renderControls(){
     const controls = $('controls');
@@ -598,10 +860,11 @@ const db = firebase.database();
     if(sec >= 5){
       await insertSession(sec, subject);
       await loadSessions();
+      checkGoalCompletion(subject);
     }
     selectedSubject = null;
     renderSubjectChips();
-    renderControls(); updateTimerUI(); renderAll();
+    renderControls(); updateTimerUI(); renderAll(); renderGoalsList();
   }
   function discardTimer(){
     running = false; clearInterval(tickHandle); startedAt = null; elapsedBeforePause = 0;
@@ -662,18 +925,23 @@ const db = firebase.database();
       return '<div class="hist-row"><div class="left"><span class="subj">'+s.subject+'</span><span class="when">'+dateLabel+'</span></div><span class="dur">'+fmtHM(s.sec)+'</span></div>';
     }).join('');
   }
-  function renderAll(){ renderSummary(); renderSessionList(); renderGoalProgress(); }
+  function renderAll(){ renderSummary(); renderSessionList(); }
 
   async function initAppData(){
     await loadSubjects();
     await loadSessions();
-    await loadGoal();
+    await loadSubjectGoals();
     renderSubjectChips();
     renderControls();
     updateTimerUI();
     renderAll();
+    populateGoalSubjectSelect();
+    renderGoalsList();
     updateNotifBtn();
-    startReminders();
+    notifyNoGoalIfNeeded();
+    $('menuBtn').classList.remove('hidden');
+    await loadUpcomingProject();
+    $('dotsBtn').classList.remove('hidden');
   }
 })();
 </script>
