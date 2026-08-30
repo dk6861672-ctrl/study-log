@@ -215,18 +215,7 @@
   }
   .xp-total{font-family:'IBM Plex Mono', monospace; font-size:34px; font-weight:600; color:var(--amber-glow);}
   .xp-total .unit{font-size:14px; color:var(--muted); font-family:'Inter',sans-serif; margin-left:4px;}
-  .xp-events{margin-top:14px; text-align:left;}
-  .xp-event{
-    display:flex; justify-content:space-between; align-items:center;
-    padding:8px 0; border-bottom:1px solid var(--line); font-size:12.5px;
-  }
-  .xp-event:last-child{border-bottom:none;}
-  .xp-event .left{display:flex; flex-direction:column; gap:1px;}
-  .xp-event .subj{color:var(--ink);}
-  .xp-event .detail{color:var(--muted); font-size:11px;}
-  .xp-event .delta{font-family:'IBM Plex Mono', monospace; font-weight:600;}
-  .xp-event .delta.pos{color:var(--amber-glow);}
-  .xp-event .delta.neg{color:var(--danger);}
+  .xp-breakdown{margin-top:12px; font-size:12px; color:var(--muted);}
 
   .subj-bar-row{margin-bottom:14px;}
   .subj-bar-row:last-child{margin-bottom:0;}
@@ -285,9 +274,8 @@
     <h2>XP</h2>
     <button type="button" class="drawer-close" id="projectDrawerCloseBtn">&times;</button>
   </div>
-  <div class="drawer-hint">1 XP for every 10 minutes you study. If you stop while a goal is still pending, you lose 1 XP per minute left on that goal.</div>
+  <div class="drawer-hint">1 XP for every 10 minutes you've studied in total, minus 1 XP for every minute still pending across your active goals.</div>
   <div class="xp-card" id="xpCard"></div>
-  <button type="button" class="btn ghost" id="backfillXpBtn" style="width:100%; margin-top:10px;">Backfill XP from past sessions</button>
 </div>
 
 
@@ -411,8 +399,6 @@ const db = firebase.database();
   let currentUser = null;
   let isSignUpMode = false;
   let activeRange = 'today';
-  let xpTotal = 0;
-  let xpEvents = []; // most recent first, {subject, sec, baseXp, penaltyMin, netXp, ts}
 
   // ---------------- TIMER PERSISTENCE (survives reload/backgrounding) ----------------
   const TIMER_KEY = 'studyWatchTimerState';
@@ -592,6 +578,7 @@ const db = firebase.database();
     }catch(err){ console.error(err); }
     subjectGoals.push(goal);
     renderGoalsList();
+    renderXpCard();
     if(canNotify()){
       new Notification('Goal set', { body: 'Study ' + hours + ' more hour' + (hours===1?'':'s') + ' of ' + subject + ' — you got this.' });
     }
@@ -599,6 +586,7 @@ const db = firebase.database();
   async function removeSubjectGoal(id){
     subjectGoals = subjectGoals.filter(g => g.id !== id);
     renderGoalsList();
+    renderXpCard();
     try{ await db.ref('subjectGoals/' + currentUser.uid + '/' + id).remove(); }catch(err){ console.error(err); }
   }
   async function markGoalDone(id){
@@ -674,89 +662,40 @@ const db = firebase.database();
         }
       }
     });
-    if(changed) renderGoalsList();
+    if(changed){ renderGoalsList(); renderXpCard(); }
   }
 
   // ---------------- XP ----------------
-  // Total lives at /xp/{uid}/total (a running counter, updated via a Firebase
-  // transaction so it can't race with itself). Each session that earns or
-  // costs XP also writes a small record to /xpEvents/{uid}/{pushId} so the
-  // drawer can show a short "why" history under the total.
-  // Rule: +1 XP per 10 minutes studied. If a goal for that subject is still
-  // pending when the session is stopped, subtract 1 XP per minute still left
-  // on the goal (this can make the net change negative).
-  async function loadXp(){
-    try{
-      const snap = await db.ref('xp/' + currentUser.uid + '/total').once('value');
-      xpTotal = snap.val() || 0;
-    }catch(err){ xpTotal = 0; }
-    try{
-      const snap = await db.ref('xpEvents/' + currentUser.uid).limitToLast(8).once('value');
-      const val = snap.val() || {};
-      xpEvents = Object.values(val).sort((a,b) => (b.ts||0) - (a.ts||0));
-    }catch(err){ xpEvents = []; }
-  }
-  async function applyXpForSession(subject, sec){
-    const baseXp = Math.floor(sec / 600); // 1 XP per 10 min studied
-    let penaltyMin = 0;
-    const goal = subjectGoals.find(g => g.subject === subject && !g.done);
-    if(goal){
-      const remainSec = goalRemainingSec(goal); // already reflects this session's minutes
-      if(remainSec > 0) penaltyMin = Math.ceil(remainSec / 60);
-    }
-    const netXp = baseXp - penaltyMin;
-    xpTotal += netXp;
-    const event = { subject: subject, sec: sec, baseXp: baseXp, penaltyMin: penaltyMin, netXp: netXp, ts: Date.now() };
-    xpEvents.unshift(event);
-    xpEvents = xpEvents.slice(0, 8);
-    try{
-      await db.ref('xp/' + currentUser.uid + '/total').transaction(cur => (cur || 0) + netXp);
-      await db.ref('xpEvents/' + currentUser.uid).push(Object.assign({}, event, { ts: firebase.database.ServerValue.TIMESTAMP }));
-    }catch(err){ console.error(err); }
-    renderXpCard();
+  // No storage needed — XP is just computed live from data we already have:
+  //   base XP  = floor(total minutes studied across all sessions / 10)
+  //   penalty  = total minutes still pending across all un-done goals
+  //   XP       = base XP − penalty
+  // Recomputed on every render, so it's always in sync with sessions/goals.
+  function computeXp(){
+    const totalStudiedSec = sessions.reduce((a, s) => a + s.sec, 0);
+    const totalStudiedMin = totalStudiedSec / 60;
+    const baseXp = Math.floor(totalStudiedMin / 10);
+
+    let pendingMin = 0;
+    subjectGoals.forEach(g => {
+      if(g.done) return;
+      const remainSec = goalRemainingSec(g);
+      if(remainSec > 0) pendingMin += remainSec / 60;
+    });
+    pendingMin = Math.ceil(pendingMin);
+
+    return { baseXp: baseXp, pendingMin: pendingMin, xp: baseXp - pendingMin };
   }
   function renderXpCard(){
     const wrap = $('xpCard');
     if(!wrap) return;
-    const eventsHtml = xpEvents.length === 0
-      ? '<div class="empty-state">No XP yet — finish a session to start earning.</div>'
-      : xpEvents.map(e => {
-          const sign = e.netXp >= 0 ? 'pos' : 'neg';
-          const label = e.netXp >= 0 ? ('+' + e.netXp) : e.netXp;
-          const detail = e.penaltyMin > 0
-            ? (fmtHM(e.sec) + ' studied · +' + e.baseXp + ' − ' + e.penaltyMin + ' pending goal')
-            : (fmtHM(e.sec) + ' studied');
-          return '<div class="xp-event"><div class="left"><span class="subj">'+e.subject+'</span><span class="detail">'+detail+'</span></div>'+
-            '<span class="delta '+sign+'">'+label+' XP</span></div>';
-        }).join('');
-    wrap.innerHTML = '<div class="xp-total">'+xpTotal+'<span class="unit">XP</span></div>'+
-      '<div class="xp-events">'+eventsHtml+'</div>';
+    const r = computeXp();
+    const breakdown = r.pendingMin > 0
+      ? (r.baseXp + ' from studying − ' + r.pendingMin + ' pending goal minutes')
+      : (r.baseXp + ' from studying · no pending goals');
+    wrap.innerHTML = '<div class="xp-total">'+r.xp+'<span class="unit">XP</span></div>'+
+      '<div class="xp-breakdown">'+breakdown+'</div>';
   }
-
-  // One-time backfill: award XP for sessions that predate the XP system.
-  // Note: past goal state (what was "pending" at the moment each old session
-  // was stopped) isn't stored anywhere, so this can only award the base XP
-  // (1 per 10 min) for historical sessions — it can't reconstruct penalties.
-  async function backfillXpFromHistory(){
-    if(!confirm('This will award base XP (1 per 10 min, no goal penalties) for all your existing sessions that don\'t already have an XP event. Continue?')) return;
-    const totalBaseXp = sessions.reduce((sum, s) => sum + Math.floor(s.sec / 600), 0);
-    if(totalBaseXp <= 0){ alert('Nothing to backfill.'); return; }
-    try{
-      await db.ref('xp/' + currentUser.uid + '/total').transaction(cur => (cur || 0) + totalBaseXp);
-      await db.ref('xpEvents/' + currentUser.uid).push({
-        subject: 'Backfill',
-        sec: sessions.reduce((a,s)=>a+s.sec,0),
-        baseXp: totalBaseXp,
-        penaltyMin: 0,
-        netXp: totalBaseXp,
-        ts: firebase.database.ServerValue.TIMESTAMP
-      });
-    }catch(err){ console.error(err); alert('Backfill failed — check console.'); return; }
-    await loadXp();
-    renderXpCard();
-    alert('Backfilled ' + totalBaseXp + ' XP.');
-  }
-  $('backfillXpBtn').onclick = backfillXpFromHistory;
 
   // ---------------- DRAWER ----------------
   function openDrawer(){
@@ -840,6 +779,7 @@ const db = firebase.database();
     $('activeSubjectLabel').textContent = (running || elapsedBeforePause > 0) && selectedSubject ? selectedSubject : '';
     if(running) checkGoalCompletion(selectedSubject);
     if($('drawer').classList.contains('open')) renderGoalsList();
+    if($('projectDrawer').classList.contains('open')) renderXpCard();
   }
   function renderControls(){
     const controls = $('controls');
@@ -880,12 +820,11 @@ const db = firebase.database();
     if(sec >= 5){
       await insertSession(sec, subject);
       await loadSessions();
-      await applyXpForSession(subject, sec);
       checkGoalCompletion(subject);
     }
     selectedSubject = null;
     renderSubjectChips();
-    renderControls(); updateTimerUI(); renderAll(); renderGoalsList();
+    renderControls(); updateTimerUI(); renderAll(); renderGoalsList(); renderXpCard();
   }
   function discardTimer(){
     running = false; clearInterval(tickHandle); startedAt = null; elapsedBeforePause = 0;
@@ -952,13 +891,13 @@ const db = firebase.database();
     await loadSubjects();
     await loadSessions();
     await loadSubjectGoals();
-    await loadXp();
     renderSubjectChips();
     renderControls();
     updateTimerUI();
     renderAll();
     populateGoalSubjectSelect();
     renderGoalsList();
+    renderXpCard();
     updateNotifBtn();
     notifyNoGoalIfNeeded();
     $('menuBtn').classList.remove('hidden');
