@@ -86,10 +86,15 @@
   .chip{
     font-family:'Inter', sans-serif; font-size:13px; padding:7px 14px; border-radius:999px;
     border:1px solid var(--line); background:var(--surface); color:var(--muted); cursor:pointer;
-    transition:all 0.15s ease;
+    transition:all 0.15s ease; display:inline-flex; align-items:center; gap:6px;
   }
   .chip:hover{border-color:var(--amber); color:var(--ink);}
   .chip.selected{background:var(--amber); border-color:var(--amber); color:#1A1408; font-weight:600;}
+  .chip .chip-rm{
+    font-size:14px; line-height:1; opacity:0.6; padding:0 2px;
+  }
+  .chip .chip-rm:hover{opacity:1; color:var(--danger);}
+  .chip.selected .chip-rm:hover{color:#5a1a1a;}
   .subject-input-row{display:flex; gap:8px; justify-content:center;}
   .subject-input-row input{
     padding:9px 12px; border-radius:8px; border:1px solid var(--line);
@@ -416,6 +421,7 @@ const db = firebase.database();
 
   let sessions = [];
   let subjects = [];
+  let subjectKeys = {}; // name -> firebase push key, for custom (removable) subjects
   let selectedSubject = null;
   let running = false;
   let startedAt = null;
@@ -544,10 +550,16 @@ const db = firebase.database();
     }catch(err){ console.error(err); }
   }
   async function loadSubjects(){
+    subjectKeys = {}; // reset: name -> firebase push key, for custom subjects only
     try{
       const snap = await db.ref('subjects/' + currentUser.uid).once('value');
       const val = snap.val() || {};
-      const custom = Object.values(val).map(v => v.name);
+      const custom = [];
+      Object.keys(val).forEach(key => {
+        const name = val[key].name;
+        subjectKeys[name] = key;
+        custom.push(name);
+      });
       subjects = [...new Set([...DEFAULT_SUBJECTS, ...custom])];
     }catch(err){
       subjects = [...DEFAULT_SUBJECTS];
@@ -556,7 +568,26 @@ const db = firebase.database();
   async function addSubject(name){
     if(subjects.includes(name)) return;
     subjects.push(name);
-    try{ await db.ref('subjects/' + currentUser.uid).push({ name }); }catch(err){ console.error(err); }
+    try{
+      const ref = await db.ref('subjects/' + currentUser.uid).push({ name });
+      subjectKeys[name] = ref.key;
+    }catch(err){ console.error(err); }
+  }
+  async function removeSubject(name){
+    // Built-in default subjects can't be removed, only ones you've added.
+    if(DEFAULT_SUBJECTS.includes(name)) return;
+    // Don't remove a subject mid-session — stop or save that timer first.
+    if(name === selectedSubject && (running || elapsedBeforePause > 0)) return;
+    subjects = subjects.filter(s => s !== name);
+    if(selectedSubject === name) selectedSubject = null;
+    const key = subjectKeys[name];
+    delete subjectKeys[name];
+    if(key){
+      try{ await db.ref('subjects/' + currentUser.uid + '/' + key).remove(); }catch(err){ console.error(err); }
+    }
+    renderSubjectChips();
+    renderControls();
+    populateGoalSubjectSelect();
   }
 
   // ---------------- GOALS & NOTIFICATIONS ----------------
@@ -778,14 +809,24 @@ const db = firebase.database();
   // ---------------- SUBJECT PICKER ----------------
   function renderSubjectChips(){
     const wrap = $('subjectChips');
-    wrap.innerHTML = subjects.map(s =>
-      '<div class="chip'+(s===selectedSubject?' selected':'')+'" data-subject="'+s+'">'+s+'</div>'
-    ).join('');
-    wrap.querySelectorAll('.chip').forEach(chip => {
-      chip.onclick = () => {
-        selectedSubject = chip.getAttribute('data-subject');
+    wrap.innerHTML = subjects.map(s => {
+      const removable = !DEFAULT_SUBJECTS.includes(s);
+      return '<div class="chip'+(s===selectedSubject?' selected':'')+'" data-subject="'+s+'">'+
+        '<span class="chip-label">'+s+'</span>'+
+        (removable ? '<span class="chip-rm" data-remove="'+s+'" title="Remove subject">&times;</span>' : '') +
+        '</div>';
+    }).join('');
+    wrap.querySelectorAll('.chip-label').forEach(label => {
+      label.onclick = () => {
+        selectedSubject = label.parentElement.getAttribute('data-subject');
         renderSubjectChips();
         renderControls();
+      };
+    });
+    wrap.querySelectorAll('.chip-rm').forEach(btn => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        removeSubject(btn.getAttribute('data-remove'));
       };
     });
   }
