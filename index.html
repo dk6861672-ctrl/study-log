@@ -139,50 +139,32 @@
   .stat-row:last-child{border-bottom:none;}
   .stat-row .val{font-family:'IBM Plex Mono', monospace; color:var(--amber-glow); font-weight:500;}
 
-  .goal-add-row{display:flex; gap:8px; margin-bottom:10px; align-items:center;}
-  .goal-add-row select{
-    flex:1; padding:9px 10px; border-radius:8px; border:1px solid var(--line);
-    background:var(--surface-alt); color:var(--ink); font-family:'Inter',sans-serif; font-size:13px;
+  /* ---- Personal record (top of the app, above the timer) ---- */
+  .record-card{
+    display:flex; justify-content:space-between; align-items:center; gap:14px;
+    background:var(--surface); border:1px solid var(--line); border-radius:14px;
+    padding:14px 18px; margin-bottom:26px;
+    transition:border-color 0.4s ease, box-shadow 0.4s ease;
   }
-  .goal-add-row input{
-    width:64px; padding:9px 10px; border-radius:8px; border:1px solid var(--line);
-    background:var(--surface-alt); color:var(--ink); font-family:'IBM Plex Mono', monospace; font-size:14px;
+  .record-card.broken{
+    border-color:var(--amber);
+    box-shadow:0 0 0 1px rgba(231,163,62,0.25), 0 0 26px -8px rgba(231,163,62,0.55);
   }
-  .goal-add-row select:focus, .goal-add-row input:focus{outline:none; border-color:var(--amber);}
-  .goal-add-row span{font-size:12.5px; color:var(--muted);}
+  .record-label{display:block; font-family:'Fraunces', serif; font-weight:500; font-size:15px;}
+  .record-hint{display:block; margin-top:3px; font-size:11.5px; color:var(--muted); line-height:1.4;}
+  .record-right{display:flex; flex-direction:column; align-items:flex-end; gap:4px; flex-shrink:0;}
+  .record-value{
+    font-family:'IBM Plex Mono', monospace; font-size:22px; font-weight:500;
+    color:var(--amber-glow); font-variant-numeric:tabular-nums; white-space:nowrap;
+  }
+  .record-badge{font-size:11.5px; font-weight:600; color:var(--c2);}
 
-  .goal-item{
-    display:flex; justify-content:space-between; align-items:center;
-    padding:10px 0; border-bottom:1px solid var(--line); font-size:13px;
-  }
-  .goal-item:last-child{border-bottom:none;}
-  .goal-item .left{display:flex; flex-direction:column; gap:2px;}
-  .goal-item .subj{color:var(--ink); font-weight:500;}
-  .goal-item .remain{font-family:'IBM Plex Mono', monospace; color:var(--amber-glow); font-size:11.5px;}
-  .goal-item .remain.done{color:var(--muted);}
-
-  /* ---- Hamburger menu + drawer ---- */
-  .menu-btn{
-    position:fixed; top:22px; right:22px; z-index:40;
-    width:38px; height:38px; border-radius:10px; border:1px solid var(--line);
-    background:var(--surface); cursor:pointer; display:flex; flex-direction:column;
-    align-items:center; justify-content:center; gap:4px;
-  }
-  .menu-btn:hover{border-color:var(--amber);}
-  .menu-btn span{width:16px; height:2px; background:var(--muted); border-radius:1px; transition:background 0.15s ease;}
-  .menu-btn:hover span{background:var(--amber);}
+  /* ---- Drawers ---- */
   .drawer-overlay{
     position:fixed; inset:0; background:rgba(10,12,16,0.6); z-index:45;
     opacity:0; transition:opacity 0.2s ease;
   }
   .drawer-overlay.open{opacity:1;}
-  .drawer{
-    position:fixed; top:0; right:0; height:100%; width:320px; max-width:88vw;
-    background:var(--surface); border-left:1px solid var(--line); z-index:50;
-    padding:24px; overflow-y:auto;
-    transform:translateX(100%); transition:transform 0.25s ease;
-  }
-  .drawer.open{transform:translateX(0);}
   .drawer-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;}
   .drawer-head h2{font-family:'Fraunces', serif; font-weight:500; font-size:16px;}
   .drawer-close{background:none; border:none; color:var(--muted); font-size:22px; cursor:pointer; line-height:1;}
@@ -238,30 +220,6 @@
 </head>
 <body>
 
-<button type="button" id="menuBtn" class="menu-btn hidden" aria-label="Study goals menu">
-  <span></span><span></span><span></span>
-</button>
-
-<div class="drawer-overlay hidden" id="drawerOverlay"></div>
-<div class="drawer" id="drawer">
-  <div class="drawer-head">
-    <h2>Study goals</h2>
-    <button type="button" class="drawer-close" id="drawerCloseBtn">&times;</button>
-  </div>
-  <div class="drawer-hint">Add extra hours to study for any subject. You'll get a notification if no goal is set, a confirmation when you add one, and a nudge when you reach it.</div>
-
-  <button type="button" class="btn ghost" id="notifBtn" style="width:100%; margin-bottom:20px;">Enable reminders</button>
-
-  <div class="goal-add-row">
-    <select id="goalSubjectSelect"></select>
-    <input type="number" id="goalHoursInput" min="0.5" step="0.5" placeholder="2">
-    <span>hrs</span>
-  </div>
-  <button type="button" id="addGoalBtn" class="btn primary" style="width:100%; margin-bottom:20px;">Add goal</button>
-
-  <div id="goalsList"></div>
-</div>
-
 <button type="button" id="dotsBtn" class="dots-btn hidden" aria-label="More menu">
   <span></span><span></span><span></span>
 </button>
@@ -272,7 +230,7 @@
     <h2>XP</h2>
     <button type="button" class="drawer-close" id="projectDrawerCloseBtn">&times;</button>
   </div>
-  <div class="drawer-hint">1 XP for every 10 minutes you've studied in total, minus 1 XP for every minute still pending across your active goals.</div>
+  <div class="drawer-hint">1 XP for every 10 minutes you've studied in total.</div>
   <div class="xp-card" id="xpCard"></div>
 </div>
 
@@ -312,6 +270,18 @@
 
   <!-- APP (shown once signed in) -->
   <div id="app" class="hidden">
+
+    <!-- Personal record: longest single study session, all time -->
+    <div class="record-card" id="recordCard">
+      <div>
+        <span class="record-label">Personal record</span>
+        <span class="record-hint" id="recordHint">Stop &amp; save a session to set your first record</span>
+      </div>
+      <div class="record-right">
+        <span class="record-value" id="recordValue">&mdash;</span>
+        <span class="record-badge hidden" id="recordBadge" role="status">New record!</span>
+      </div>
+    </div>
 
     <!-- Subject picker (shown only when timer is idle) -->
     <div class="subject-picker" id="subjectPicker">
@@ -479,8 +449,7 @@ const db = firebase.database();
       $('authCard').classList.remove('hidden');
       $('app').classList.add('hidden');
       $('userChip').classList.add('hidden');
-      $('menuBtn').classList.add('hidden');
-      closeDrawer();
+      recordJustBroken = false;
       $('dotsBtn').classList.add('hidden');
       closeProjectDrawer();
     }
@@ -532,177 +501,51 @@ const db = firebase.database();
     try{ await db.ref('subjects/' + currentUser.uid).push({ name }); }catch(err){ console.error(err); }
   }
 
-  // ---------------- GOALS & NOTIFICATIONS ----------------
-  // Goals live at /subjectGoals/{uid}/{goalId} in Firebase: each one is
-  // "study N more hours of <subject>", captured from the moment it's added.
-  // Notifications are event-driven, not on a timer: one when you have no
-  // goal set, one confirming a goal was added, and one the moment a goal
-  // is actually reached (checked live while the matching timer runs).
-  let subjectGoals = []; // {id, subject, targetSec, baselineSec, done}
-
-  async function loadSubjectGoals(){
-    try{
-      const snap = await db.ref('subjectGoals/' + currentUser.uid).once('value');
-      const val = snap.val() || {};
-      subjectGoals = Object.keys(val).map(key => Object.assign({ id: key }, val[key]));
-    }catch(err){
-      subjectGoals = [];
-    }
-  }
-  function totalSubjectStudiedSec(subject){
-    let sec = sessions.filter(s => s.subject === subject).reduce((a,s)=>a+s.sec,0);
-    if(selectedSubject === subject && (running || elapsedBeforePause > 0)) sec += currentElapsedSec();
-    return sec;
-  }
-  function goalRemainingSec(g){
-    const studiedSinceAdded = totalSubjectStudiedSec(g.subject) - g.baselineSec;
-    return Math.max(0, g.targetSec - studiedSinceAdded);
-  }
-  function canNotify(){
-    return ('Notification' in window) && Notification.permission === 'granted';
-  }
-  async function addSubjectGoal(subject, hours){
-    const goal = {
-      subject: subject,
-      targetSec: Math.round(hours * 3600),
-      baselineSec: Math.round(totalSubjectStudiedSec(subject)),
-      done: false,
-      createdAt: Date.now()
-    };
-    goal.id = 'local-' + Date.now();
-    try{
-      const ref = await db.ref('subjectGoals/' + currentUser.uid).push(goal);
-      goal.id = ref.key;
-    }catch(err){ console.error(err); }
-    subjectGoals.push(goal);
-    renderGoalsList();
-    renderXpCard();
-    if(canNotify()){
-      new Notification('Goal set', { body: 'Study ' + hours + ' more hour' + (hours===1?'':'s') + ' of ' + subject + ' — you got this.' });
-    }
-  }
-  async function markGoalDone(id){
-    try{ await db.ref('subjectGoals/' + currentUser.uid + '/' + id).update({ done: true }); }catch(err){ console.error(err); }
-  }
-  function populateGoalSubjectSelect(){
-    $('goalSubjectSelect').innerHTML = subjects.map(s => '<option value="'+s+'">'+s+'</option>').join('');
-  }
-  function renderGoalsList(){
-    const wrap = $('goalsList');
-    if(subjectGoals.length === 0){
-      wrap.innerHTML = '<div class="empty-state">No goals yet — add one above.</div>';
-      return;
-    }
-    wrap.innerHTML = subjectGoals.map(g => {
-      const remain = goalRemainingSec(g);
-      const isDone = g.done || remain <= 0;
-      const label = isDone ? 'Done ✓' : fmtHM(remain) + ' left';
-      return '<div class="goal-item"><div class="left"><span class="subj">'+g.subject+'</span>'+
-        '<span class="remain'+(isDone?' done':'')+'">'+label+'</span></div></div>';
-    }).join('');
-  }
-  $('addGoalBtn').onclick = async () => {
-    const subject = $('goalSubjectSelect').value;
-    const hours = parseFloat($('goalHoursInput').value);
-    if(!subject || !hours || hours <= 0) return;
-    await addSubjectGoal(subject, hours);
-    $('goalHoursInput').value = '';
-  };
-
-  function updateNotifBtn(){
-    const btn = $('notifBtn');
-    if(!('Notification' in window)){ btn.textContent = 'Not supported here'; btn.disabled = true; return; }
-    if(Notification.permission === 'granted'){ btn.textContent = 'Reminders on'; btn.disabled = true; }
-    else if(Notification.permission === 'denied'){ btn.textContent = 'Blocked — check browser settings'; btn.disabled = true; }
-    else{ btn.textContent = 'Enable reminders'; btn.disabled = false; }
-  }
-  $('notifBtn').onclick = async () => {
-    if(!('Notification' in window)) return;
-    if(Notification.permission === 'default'){
-      await Notification.requestPermission();
-      updateNotifBtn();
-      notifyNoGoalIfNeeded();
-    }
-  };
-
-  // Fires once per app load if the user has no goals at all — nudges them
-  // to set one instead of waiting around.
-  function notifyNoGoalIfNeeded(){
-    if(!canNotify()) return;
-    if(subjectGoals.length === 0){
-      new Notification('No study goal set', { body: 'Open the ☰ menu and add how many hours you want to study, for any subject.' });
-    }
-  }
-  // Checks one subject's goals right now — called live while a timer for
-  // that subject is running, and again right after a session is saved —
-  // so "goal reached" fires the moment it actually happens, not on a delay.
-  function checkGoalCompletion(subject){
-    if(!subject) return;
-    let changed = false;
-    subjectGoals.forEach(g => {
-      if(g.done || g.subject !== subject) return;
-      if(goalRemainingSec(g) <= 0){
-        g.done = true;
-        changed = true;
-        markGoalDone(g.id);
-        if(canNotify()){
-          new Notification('Goal reached! 🎉', { body: g.subject + ' — you hit your target. Nice work.' });
-        }
-      }
-    });
-    if(changed){ renderGoalsList(); renderXpCard(); }
-  }
-
   // ---------------- XP ----------------
-  // No storage needed — XP is just computed live from data we already have:
-  //   base XP  = floor(total minutes studied across all sessions / 10)
-  //   penalty  = total minutes still pending across all un-done goals
-  //   XP       = base XP − penalty
-  // Recomputed on every render, so it's always in sync with sessions/goals.
+  // No storage needed — XP is computed live from the saved sessions:
+  //   XP = floor(total minutes studied across all sessions / 10)
   function computeXp(){
-    const totalStudiedSec = sessions.reduce((a, s) => a + s.sec, 0);
-    const totalStudiedMin = totalStudiedSec / 60;
-    const baseXp = Math.floor(totalStudiedMin / 10);
-
-    let pendingMin = 0;
-    subjectGoals.forEach(g => {
-      if(g.done) return;
-      const remainSec = goalRemainingSec(g);
-      if(remainSec > 0) pendingMin += remainSec / 60;
-    });
-    pendingMin = Math.ceil(pendingMin);
-
-    return { baseXp: baseXp, pendingMin: pendingMin, xp: baseXp - pendingMin };
+    const totalSec = sessions.reduce((a, s) => a + s.sec, 0);
+    return { totalSec: totalSec, xp: Math.floor(totalSec / 60 / 10) };
   }
   function renderXpCard(){
     const wrap = $('xpCard');
     if(!wrap) return;
     const r = computeXp();
-    const breakdown = r.pendingMin > 0
-      ? (r.baseXp + ' from studying − ' + r.pendingMin + ' pending goal minutes')
-      : (r.baseXp + ' from studying · no pending goals');
     wrap.innerHTML = '<div class="xp-total">'+r.xp+'<span class="unit">XP</span></div>'+
-      '<div class="xp-breakdown">'+breakdown+'</div>';
+      '<div class="xp-breakdown">'+fmtHM(r.totalSec)+' studied in total</div>';
   }
 
-  // ---------------- DRAWER ----------------
-  function openDrawer(){
-    populateGoalSubjectSelect();
-    renderGoalsList();
-    $('drawerOverlay').classList.remove('hidden');
-    requestAnimationFrame(() => {
-      $('drawerOverlay').classList.add('open');
-      $('drawer').classList.add('open');
-    });
+  // ---------------- PERSONAL RECORD ----------------
+  // The record is the longest single saved session, so it's derived from the
+  // sessions already in Firebase: it follows the user across devices and
+  // needs no new database path or rules.
+  // While the timer runs past the saved record it is shown live; once the
+  // session is saved the "New record!" badge stays until the next session starts.
+  let recordJustBroken = false;
+  let recordPrevSec = 0;
+  function bestSavedSec(){
+    return sessions.reduce((best, s) => Math.max(best, s.sec || 0), 0);
   }
-  function closeDrawer(){
-    $('drawerOverlay').classList.remove('open');
-    $('drawer').classList.remove('open');
-    setTimeout(() => $('drawerOverlay').classList.add('hidden'), 220);
+  function renderRecord(){
+    const saved = bestSavedSec();
+    const live = (running || elapsedBeforePause > 0) ? currentElapsedSec() : 0;
+    const breakingNow = saved > 0 && live > saved;
+    const isNew = breakingNow || recordJustBroken;
+    const shown = breakingNow ? live : saved;
+
+    const valueText = shown > 0 ? fmtHMS(shown) : '\u2014';
+    if($('recordValue').textContent !== valueText) $('recordValue').textContent = valueText;
+
+    let hint;
+    if(saved === 0 && !recordJustBroken) hint = 'Stop & save a session to set your first record';
+    else if(isNew) hint = 'You beat your previous best of ' + fmtHMS(breakingNow ? saved : recordPrevSec);
+    else hint = 'Your longest study session ever';
+    if($('recordHint').textContent !== hint) $('recordHint').textContent = hint;
+
+    $('recordBadge').classList.toggle('hidden', !isNew);
+    $('recordCard').classList.toggle('broken', isNew);
   }
-  $('menuBtn').onclick = openDrawer;
-  $('drawerCloseBtn').onclick = closeDrawer;
-  $('drawerOverlay').onclick = closeDrawer;
 
   // ---------------- XP DRAWER (left, three-dots) ----------------
   function openProjectDrawer(){
@@ -745,7 +588,6 @@ const db = firebase.database();
     input.value = '';
     renderSubjectChips();
     renderControls();
-    populateGoalSubjectSelect();
   };
   $('newSubjectInput').addEventListener('keydown', (e) => {
     if(e.key === 'Enter'){ e.preventDefault(); $('addSubjectBtn').click(); }
@@ -765,8 +607,7 @@ const db = firebase.database();
     const cyclePos = (sec % 3600) / 3600;
     $('ringProgress').setAttribute('stroke-dashoffset', RING_CIRC * (1 - cyclePos));
     $('activeSubjectLabel').textContent = (running || elapsedBeforePause > 0) && selectedSubject ? selectedSubject : '';
-    if(running) checkGoalCompletion(selectedSubject);
-    if($('drawer').classList.contains('open')) renderGoalsList();
+    renderRecord();
     if($('projectDrawer').classList.contains('open')) renderXpCard();
   }
   function renderControls(){
@@ -791,6 +632,7 @@ const db = firebase.database();
   }
   function startTimer(){
     if(!selectedSubject) return;
+    if(elapsedBeforePause === 0) recordJustBroken = false;
     running = true; startedAt = Date.now();
     tickHandle = setInterval(updateTimerUI, 250);
     saveTimerState();
@@ -803,16 +645,20 @@ const db = firebase.database();
   async function stopAndSave(){
     const sec = Math.round(currentElapsedSec());
     const subject = selectedSubject;
+    const prevBest = bestSavedSec();
     running = false; clearInterval(tickHandle); startedAt = null; elapsedBeforePause = 0;
     clearTimerState();
     if(sec >= 5){
       await insertSession(sec, subject);
       await loadSessions();
-      checkGoalCompletion(subject);
+      if(prevBest > 0 && bestSavedSec() > prevBest){
+        recordJustBroken = true;
+        recordPrevSec = prevBest;
+      }
     }
     selectedSubject = null;
     renderSubjectChips();
-    renderControls(); updateTimerUI(); renderAll(); renderGoalsList(); renderXpCard();
+    renderControls(); updateTimerUI(); renderAll(); renderXpCard();
   }
   function discardTimer(){
     running = false; clearInterval(tickHandle); startedAt = null; elapsedBeforePause = 0;
@@ -878,17 +724,11 @@ const db = firebase.database();
   async function initAppData(){
     await loadSubjects();
     await loadSessions();
-    await loadSubjectGoals();
     renderSubjectChips();
     renderControls();
     updateTimerUI();
     renderAll();
-    populateGoalSubjectSelect();
-    renderGoalsList();
     renderXpCard();
-    updateNotifBtn();
-    notifyNoGoalIfNeeded();
-    $('menuBtn').classList.remove('hidden');
     $('dotsBtn').classList.remove('hidden');
   }
 })();
