@@ -271,7 +271,7 @@
   <!-- APP (shown once signed in) -->
   <div id="app" class="hidden">
 
-    <!-- Personal record: longest single study session, all time -->
+    <!-- Personal record: most time studied in one day (all subjects combined) -->
     <div class="record-card" id="recordCard">
       <div>
         <span class="record-label">Personal record</span>
@@ -449,7 +449,6 @@ const db = firebase.database();
       $('authCard').classList.remove('hidden');
       $('app').classList.add('hidden');
       $('userChip').classList.add('hidden');
-      recordJustBroken = false;
       $('dotsBtn').classList.add('hidden');
       closeProjectDrawer();
     }
@@ -517,30 +516,35 @@ const db = firebase.database();
   }
 
   // ---------------- PERSONAL RECORD ----------------
-  // The record is the longest single saved session, so it's derived from the
-  // sessions already in Firebase: it follows the user across devices and
-  // needs no new database path or rules.
-  // While the timer runs past the saved record it is shown live; once the
-  // session is saved the "New record!" badge stays until the next session starts.
-  let recordJustBroken = false;
-  let recordPrevSec = 0;
-  function bestSavedSec(){
-    return sessions.reduce((best, s) => Math.max(best, s.sec || 0), 0);
+  // The record is the best DAILY total: all subjects studied on one day are
+  // added together. It is derived from the sessions already in Firebase, so it
+  // follows the user across devices and needs no new database path or rules.
+  // Today's total (saved sessions + the running timer) is compared live with
+  // the best of all previous days; once it is beaten the record updates and
+  // the "New record!" badge shows.
+  function dayTotals(){
+    const t = {};
+    sessions.forEach(s => { t[s.date] = (t[s.date] || 0) + (s.sec || 0); });
+    return t;
   }
   function renderRecord(){
-    const saved = bestSavedSec();
+    const totals = dayTotals();
+    const today = todayStr();
+    let prevBest = 0;                       // best day before today
+    Object.keys(totals).forEach(d => { if(d !== today) prevBest = Math.max(prevBest, totals[d]); });
     const live = (running || elapsedBeforePause > 0) ? currentElapsedSec() : 0;
-    const breakingNow = saved > 0 && live > saved;
-    const isNew = breakingNow || recordJustBroken;
-    const shown = breakingNow ? live : saved;
+    const todayTotal = (totals[today] || 0) + live;   // all subjects today + running timer
+    const isNew = prevBest > 0 && todayTotal > prevBest;
+    const shown = Math.max(prevBest, todayTotal);
 
     const valueText = shown > 0 ? fmtHMS(shown) : '\u2014';
     if($('recordValue').textContent !== valueText) $('recordValue').textContent = valueText;
 
     let hint;
-    if(saved === 0 && !recordJustBroken) hint = 'Stop & save a session to set your first record';
-    else if(isNew) hint = 'You beat your previous best of ' + fmtHMS(breakingNow ? saved : recordPrevSec);
-    else hint = 'Your longest study session ever';
+    if(shown === 0) hint = 'Stop & save a session to set your first record';
+    else if(isNew) hint = 'You beat your previous best day of ' + fmtHMS(prevBest);
+    else if(prevBest === 0) hint = 'Today is your best day so far \u2014 keep going!';
+    else hint = 'Your most studied time in one day (all subjects)';
     if($('recordHint').textContent !== hint) $('recordHint').textContent = hint;
 
     $('recordBadge').classList.toggle('hidden', !isNew);
@@ -632,7 +636,6 @@ const db = firebase.database();
   }
   function startTimer(){
     if(!selectedSubject) return;
-    if(elapsedBeforePause === 0) recordJustBroken = false;
     running = true; startedAt = Date.now();
     tickHandle = setInterval(updateTimerUI, 250);
     saveTimerState();
@@ -645,16 +648,11 @@ const db = firebase.database();
   async function stopAndSave(){
     const sec = Math.round(currentElapsedSec());
     const subject = selectedSubject;
-    const prevBest = bestSavedSec();
     running = false; clearInterval(tickHandle); startedAt = null; elapsedBeforePause = 0;
     clearTimerState();
     if(sec >= 5){
       await insertSession(sec, subject);
       await loadSessions();
-      if(prevBest > 0 && bestSavedSec() > prevBest){
-        recordJustBroken = true;
-        recordPrevSec = prevBest;
-      }
     }
     selectedSubject = null;
     renderSubjectChips();
